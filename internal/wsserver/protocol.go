@@ -17,6 +17,10 @@ type DeviceController interface {
 	Apps() []string
 	RefreshApps(ctx context.Context) ([]string, error)
 	Connected() bool
+	// SetManualTarget overrides the target used for the next connection
+	// attempt only (see adbctl.Session) — a one-shot hint, not a sticky
+	// override. Automatic mDNS discovery resumes on the following drop.
+	SetManualTarget(host string, port int)
 }
 
 type incoming struct {
@@ -26,6 +30,8 @@ type incoming struct {
 	Code  string `json:"code"`
 	Value string `json:"value"`
 	Pkg   string `json:"pkg"`
+	Host  string `json:"host"`
+	Port  int    `json:"port"`
 }
 
 // Dispatch parses one raw client WS message and invokes the matching
@@ -53,6 +59,15 @@ func Dispatch(ctx context.Context, ctrl DeviceController, raw []byte) error {
 	case "refresh_apps":
 		_, err := ctrl.RefreshApps(ctx)
 		return err
+	case "set_target":
+		if msg.Host == "" {
+			return fmt.Errorf("wsserver: set_target: host must not be empty")
+		}
+		if msg.Port <= 0 || msg.Port > 65535 {
+			return fmt.Errorf("wsserver: set_target: invalid port %d", msg.Port)
+		}
+		ctrl.SetManualTarget(msg.Host, msg.Port)
+		return nil
 	default:
 		return fmt.Errorf("wsserver: unknown message type %q", msg.Type)
 	}

@@ -15,13 +15,19 @@ import (
 // target device (e.g. "10.102.78.155:3333"), keeping it alive and
 // reconnecting on failure. It's the type wsserver depends on to drive
 // the device.
+//
+// The target for each (re)connection attempt comes from resolver: a
+// manual target — set once via SetManualTarget, or seeded at
+// construction from an initial "-target" value — is used for exactly
+// one attempt and then discovery takes over again on the next drop.
 type Session struct {
-	target   string
+	resolver *targetResolver
 	onStatus func(connected bool)
 
-	mu   sync.RWMutex
-	ctrl *Controller
-	cmd  *exec.Cmd
+	mu      sync.RWMutex
+	ctrl    *Controller
+	cmd     *exec.Cmd
+	current string // target used for the current/last connection attempt
 
 	statusMu  sync.RWMutex
 	connected bool
@@ -30,8 +36,24 @@ type Session struct {
 	apps   []string
 }
 
-func NewSession(target string, onStatus func(connected bool)) *Session {
-	return &Session{target: target, onStatus: onStatus}
+// NewSession creates a Session. initialTarget, if non-empty, is used as
+// a one-shot manual target for the first connection attempt (exactly
+// like a later SetManualTarget call); if empty, discovery is used from
+// the start. discover is consulted whenever no manual target is
+// pending; pass nil only if initialTarget is always non-empty for the
+// lifetime of the Session (discovery is never reached in that case).
+func NewSession(initialTarget string, discover DiscoverFunc, onStatus func(connected bool)) *Session {
+	return &Session{
+		resolver: newTargetResolver(initialTarget, discover),
+		onStatus: onStatus,
+	}
+}
+
+// SetManualTarget queues host:port as a one-shot target for the next
+// connection attempt. If a connection is currently active, it is
+// unaffected until it next drops.
+func (s *Session) SetManualTarget(host string, port int) {
+	s.resolver.setManual(host, port)
 }
 
 // Run connects and keeps reconnecting with backoff until ctx is canceled.
@@ -39,7 +61,7 @@ func (s *Session) Run(ctx context.Context) {
 	attempt := 0
 	for ctx.Err() == nil {
 		if err := s.connectOnce(ctx); err != nil {
-			log.Printf("adbctl: connect to %s failed: %v", s.target, err)
+			log.Printf("adbctl: connect failed: %v", err)
 			s.setStatus(false)
 			select {
 			case <-ctx.Done():
@@ -74,11 +96,19 @@ func nextBackoff(attempt int) time.Duration {
 }
 
 func (s *Session) connectOnce(ctx context.Context) error {
-	if out, err := exec.CommandContext(ctx, "adb", "connect", s.target).CombinedOutput(); err != nil {
-		return fmt.Errorf("adb connect: %w (%s)", err, strings.TrimSpace(string(out)))
+	target, err := s.resolver.resolve(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve target: %w", err)
+	}
+	s.mu.Lock()
+	s.current = target
+	s.mu.Unlock()
+
+	if out, err := exec.CommandContext(ctx, "adb", "connect", target).CombinedOutput(); err != nil {
+		return fmt.Errorf("adb connect %s: %w (%s)", target, err, strings.TrimSpace(string(out)))
 	}
 
-	cmd := exec.CommandContext(ctx, "adb", "-s", s.target, "shell")
+	cmd := exec.CommandContext(ctx, "adb", "-s", target, "shell")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("stdin pipe: %w", err)
@@ -89,7 +119,7 @@ func (s *Session) connectOnce(ctx context.Context) error {
 
 	ctrl := New(&lineWriter{w: stdin})
 
-	nodePath, err := s.resolveMouseNode(ctx)
+	nodePath, err := s.resolveMouseNode(ctx, target)
 	if err != nil {
 		_ = cmd.Process.Kill()
 		return fmt.Errorf("resolve mouse node: %w", err)
@@ -101,7 +131,7 @@ func (s *Session) connectOnce(ctx context.Context) error {
 	s.ctrl = ctrl
 	s.mu.Unlock()
 
-	if pkgs, err := s.fetchInstalledPackages(ctx); err == nil {
+	if pkgs, err := s.fetchInstalledPackages(ctx, target); err == nil {
 		s.appsMu.Lock()
 		s.apps = pkgs
 		s.appsMu.Unlock()
@@ -112,10 +142,10 @@ func (s *Session) connectOnce(ctx context.Context) error {
 	return nil
 }
 
-func (s *Session) resolveMouseNode(ctx context.Context) (string, error) {
+func (s *Session) resolveMouseNode(ctx context.Context, target string) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
 	defer cancel()
-	cmd := exec.CommandContext(cctx, "adb", "-s", s.target, "shell", "getevent", "-i")
+	cmd := exec.CommandContext(cctx, "adb", "-s", target, "shell", "getevent", "-i")
 	out, _ := cmd.CombinedOutput() // getevent -i never exits on its own; the timeout always kills it
 	return parseMouseNodeFromGetevent(string(out), "jixin_mouse")
 }
@@ -140,10 +170,10 @@ func parseMouseNodeFromGetevent(output, wantName string) (string, error) {
 	return "", fmt.Errorf("adbctl: no input device named %q found", wantName)
 }
 
-func (s *Session) fetchInstalledPackages(ctx context.Context) ([]string, error) {
+func (s *Session) fetchInstalledPackages(ctx context.Context, target string) ([]string, error) {
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(cctx, "adb", "-s", s.target, "shell", "pm", "list", "packages", "-3").Output()
+	out, err := exec.CommandContext(cctx, "adb", "-s", target, "shell", "pm", "list", "packages", "-3").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +220,14 @@ func (s *Session) Apps() []string {
 
 // RefreshApps re-fetches the installed package list from the device.
 func (s *Session) RefreshApps(ctx context.Context) ([]string, error) {
-	pkgs, err := s.fetchInstalledPackages(ctx)
+	s.mu.RLock()
+	target := s.current
+	s.mu.RUnlock()
+	if target == "" {
+		return nil, fmt.Errorf("adbctl: not connected to device yet")
+	}
+
+	pkgs, err := s.fetchInstalledPackages(ctx, target)
 	if err != nil {
 		return nil, err
 	}

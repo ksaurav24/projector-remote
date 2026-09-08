@@ -1,6 +1,7 @@
 package adbctl
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -98,7 +99,7 @@ func TestNextBackoff_CapsAtLastStep(t *testing.T) {
 }
 
 func TestSession_DelegatesFailWhenNotConnected(t *testing.T) {
-	s := NewSession("127.0.0.1:1", nil)
+	s := NewSession("127.0.0.1:1", nil, nil)
 	if err := s.KeyEvent("KEYCODE_HOME"); err == nil {
 		t.Error("expected error before any connection has been established")
 	}
@@ -110,5 +111,18 @@ func TestSession_DelegatesFailWhenNotConnected(t *testing.T) {
 	}
 	if apps := s.Apps(); len(apps) != 0 {
 		t.Errorf("expected no apps before first connect, got %v", apps)
+	}
+}
+
+func TestSession_SetManualTarget_QueuesOneShotForNextResolve(t *testing.T) {
+	s := NewSession("", nil, nil)
+	s.SetManualTarget("192.168.1.77", 4444)
+
+	got, err := s.resolver.resolve(context.Background())
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if got != "192.168.1.77:4444" {
+		t.Errorf("got %q, want 192.168.1.77:4444", got)
 	}
 }

@@ -15,9 +15,15 @@ import (
 	"time"
 
 	"projectorremote/internal/adbctl"
+	"projectorremote/internal/discover"
 	"projectorremote/internal/wsserver"
 	webdist "projectorremote/web"
 )
+
+// discoverTimeout bounds a single mDNS browse attempt when no manual
+// target is pending, so the reconnect loop's existing backoff still
+// governs the retry cadence rather than blocking indefinitely.
+const discoverTimeout = 5 * time.Second
 
 func newMux(distFS fs.FS, hub http.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -30,14 +36,16 @@ func newMux(distFS fs.FS, hub http.Handler) *http.ServeMux {
 	return mux
 }
 
+// discoverTarget adapts discover.Find to adbctl.DiscoverFunc.
+func discoverTarget(ctx context.Context) (string, int, error) {
+	return discover.Find(ctx, discoverTimeout)
+}
+
 func main() {
 	listenAddr := flag.String("listen", ":8080", "address to listen on")
-	target := flag.String("target", "", "projector ADB target, e.g. 192.168.1.50:5555")
+	target := flag.String("target", "", "initial projector ADB target, e.g. 192.168.1.50:5555 (optional; omit to start in mDNS discovery mode, same as a runtime manual override)")
 	flag.Parse()
 
-	if *target == "" {
-		log.Fatal("main: -target is required, e.g. -target=192.168.1.50:5555")
-	}
 	if _, err := exec.LookPath("adb"); err != nil {
 		log.Fatalf("main: adb not found in PATH: %v", err)
 	}
@@ -51,7 +59,7 @@ func main() {
 	}
 
 	var hub *wsserver.Hub
-	session := adbctl.NewSession(*target, func(connected bool) {
+	session := adbctl.NewSession(*target, discoverTarget, func(connected bool) {
 		if hub != nil {
 			hub.BroadcastStatus(connected)
 		}
@@ -70,7 +78,11 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("main: listening on %s, target device %s", *listenAddr, *target)
+	if *target != "" {
+		log.Printf("main: listening on %s, initial target %s (falls back to mDNS discovery on disconnect)", *listenAddr, *target)
+	} else {
+		log.Printf("main: listening on %s, searching for projector via mDNS", *listenAddr)
+	}
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("main: serve: %v", err)
 	}
