@@ -95,7 +95,7 @@ func (h *Hub) writePump(c *wsClient) {
 }
 
 // BroadcastStatus notifies all connected clients of a device connection
-// state change. Safe to call from adbctl's status callback.
+// state change.
 func (h *Hub) BroadcastStatus(connected bool) {
 	b, _ := json.Marshal(map[string]any{"type": "status", "connected": connected})
 	h.broadcast(b)

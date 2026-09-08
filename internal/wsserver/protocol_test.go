@@ -2,22 +2,20 @@ package wsserver
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 )
 
 type mockCtrl struct {
-	mu           sync.Mutex
-	keyEvents    []string
-	texts        []string
-	launches     []string
-	moves        [][2]int
-	buttons      []bool
-	refreshed    bool
-	connected    bool
-	manualTarget []string // "host:port" entries, in call order
-	calls        chan string
+	mu        sync.Mutex
+	keyEvents []string
+	texts     []string
+	launches  []string
+	moves     [][2]int
+	buttons   []bool
+	refreshed bool
+	connected bool
+	calls     chan string
 }
 
 func newMockCtrl() *mockCtrl {
@@ -87,13 +85,6 @@ func (m *mockCtrl) Connected() bool {
 	return m.connected
 }
 
-func (m *mockCtrl) SetManualTarget(host string, port int) {
-	m.mu.Lock()
-	m.manualTarget = append(m.manualTarget, fmt.Sprintf("%s:%d", host, port))
-	m.mu.Unlock()
-	m.note("set_target")
-}
-
 func TestDispatch_Move(t *testing.T) {
 	m := newMockCtrl()
 	if err := Dispatch(context.Background(), m, []byte(`{"type":"move","dx":4,"dy":-2}`)); err != nil {
@@ -154,39 +145,6 @@ func TestDispatch_RefreshApps(t *testing.T) {
 	}
 	if !m.refreshed {
 		t.Error("expected RefreshApps to be called")
-	}
-}
-
-func TestDispatch_SetTarget(t *testing.T) {
-	m := newMockCtrl()
-	if err := Dispatch(context.Background(), m, []byte(`{"type":"set_target","host":"192.168.1.50","port":5555}`)); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(m.manualTarget) != 1 || m.manualTarget[0] != "192.168.1.50:5555" {
-		t.Errorf("got %v", m.manualTarget)
-	}
-}
-
-func TestDispatch_SetTarget_RejectsEmptyHost(t *testing.T) {
-	m := newMockCtrl()
-	if err := Dispatch(context.Background(), m, []byte(`{"type":"set_target","host":"","port":5555}`)); err == nil {
-		t.Error("expected error for empty host")
-	}
-	if len(m.manualTarget) != 0 {
-		t.Errorf("expected no SetManualTarget call, got %v", m.manualTarget)
-	}
-}
-
-func TestDispatch_SetTarget_RejectsInvalidPort(t *testing.T) {
-	m := newMockCtrl()
-	if err := Dispatch(context.Background(), m, []byte(`{"type":"set_target","host":"192.168.1.50","port":0}`)); err == nil {
-		t.Error("expected error for port 0")
-	}
-	if err := Dispatch(context.Background(), m, []byte(`{"type":"set_target","host":"192.168.1.50","port":70000}`)); err == nil {
-		t.Error("expected error for port > 65535")
-	}
-	if len(m.manualTarget) != 0 {
-		t.Errorf("expected no SetManualTarget call, got %v", m.manualTarget)
 	}
 }
 

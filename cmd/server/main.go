@@ -9,21 +9,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"projectorremote/internal/adbctl"
-	"projectorremote/internal/discover"
+	"projectorremote/internal/deviceio"
 	"projectorremote/internal/wsserver"
 	webdist "projectorremote/web"
 )
-
-// discoverTimeout bounds a single mDNS browse attempt when no manual
-// target is pending, so the reconnect loop's existing backoff still
-// governs the retry cadence rather than blocking indefinitely.
-const discoverTimeout = 5 * time.Second
 
 func newMux(distFS fs.FS, hub http.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -36,19 +29,9 @@ func newMux(distFS fs.FS, hub http.Handler) *http.ServeMux {
 	return mux
 }
 
-// discoverTarget adapts discover.Find to adbctl.DiscoverFunc.
-func discoverTarget(ctx context.Context) (string, int, error) {
-	return discover.Find(ctx, discoverTimeout)
-}
-
 func main() {
 	listenAddr := flag.String("listen", ":8080", "address to listen on")
-	target := flag.String("target", "", "initial projector ADB target, e.g. 192.168.1.50:5555 (optional; omit to start in mDNS discovery mode, same as a runtime manual override)")
 	flag.Parse()
-
-	if _, err := exec.LookPath("adb"); err != nil {
-		log.Fatalf("main: adb not found in PATH: %v", err)
-	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -58,18 +41,18 @@ func main() {
 		log.Fatalf("main: bad embedded dist: %v", err)
 	}
 
-	var hub *wsserver.Hub
-	session := adbctl.NewSession(*target, discoverTarget, func(connected bool) {
-		if hub != nil {
-			hub.BroadcastStatus(connected)
-		}
-	})
-	hub = wsserver.NewHub(session)
+	// Runs on the projector itself: device I/O setup failing here is
+	// fatal, not something to retry in the background, since it's
+	// local hardware rather than a network link that can be expected
+	// to drop and reconnect.
+	ctrl, err := deviceio.New(ctx)
+	if err != nil {
+		log.Fatalf("main: device setup: %v", err)
+	}
 
+	hub := wsserver.NewHub(ctrl)
 	mux := newMux(distFS, hub)
 	srv := &http.Server{Addr: *listenAddr, Handler: mux}
-
-	go session.Run(ctx)
 
 	go func() {
 		<-ctx.Done()
@@ -78,11 +61,7 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	if *target != "" {
-		log.Printf("main: listening on %s, initial target %s (falls back to mDNS discovery on disconnect)", *listenAddr, *target)
-	} else {
-		log.Printf("main: listening on %s, searching for projector via mDNS", *listenAddr)
-	}
+	log.Printf("main: listening on %s", *listenAddr)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("main: serve: %v", err)
 	}
