@@ -3,6 +3,7 @@ import { ConnectionStatus } from "./components/ConnectionStatus";
 import { Touchpad } from "./components/Touchpad";
 import { ButtonGrid } from "./components/ButtonGrid";
 import { TextEntry } from "./components/TextEntry";
+import { AppLauncher } from "./components/AppLauncher";
 
 function Shell() {
   const { connected } = useWs();
@@ -14,6 +15,7 @@ function Shell() {
         <Touchpad />
         <ButtonGrid />
         <TextEntry />
+        <AppLauncher />
       </main>
     </div>
   );
