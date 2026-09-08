@@ -1,6 +1,7 @@
 import { WsProvider, useWs } from "./ws/WsContext";
 import { ConnectionStatus } from "./components/ConnectionStatus";
 import { Touchpad } from "./components/Touchpad";
+import { ButtonGrid } from "./components/ButtonGrid";
 
 function Shell() {
   const { connected } = useWs();
@@ -10,6 +11,7 @@ function Shell() {
       <main className="pt-10 px-4 max-w-md mx-auto pb-8">
         <h1 className="text-xl font-semibold text-center py-4">Projector Remote</h1>
         <Touchpad />
+        <ButtonGrid />
       </main>
     </div>
   );
