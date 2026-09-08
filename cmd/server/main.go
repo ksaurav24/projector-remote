@@ -1,5 +1,7 @@
 package main
 
+//go:generate npm --prefix ../../web run build
+
 import (
 	"context"
 	"flag"
