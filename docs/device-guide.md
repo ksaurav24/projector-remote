@@ -142,9 +142,40 @@ freely edited via a plain `adb push` — no special patching — to launch
 re-invokes it every boot. This is the recommended path for adding new
 boot-time behavior going forward.
 
-If `check_adb` doesn't already have that trailing hook line (check
-first with `adb shell cat /system/bin/check_adb`), see §6 for exactly
-how to add it safely.
+**Confirmed live and working (2026-09-08):** the hook line above is
+now actually present on the device (added via the §6 procedure) and
+`/data/local/tmp/startup.sh` launches `cmd/server`'s binary
+(`/data/local/tmp/projector-remote`). Verified end-to-end across a
+real reboot: `check_adb`'s patch survived, `startup.sh` ran, the
+server process came up on its own with no manual step, and it
+answered HTTP requests. Current `startup.sh`:
+
+```sh
+#!/system/bin/sh
+[ -x /data/local/tmp/projector-remote ] && \
+  nohup /data/local/tmp/projector-remote -listen :8080 \
+  > /data/local/tmp/projector-remote.log 2>&1 &
+```
+
+The absolute byte offset used for the `check_adb` patch (system_a's
+start-in-super, 1,048,576, plus its data block's offset within
+system_a, block 211890 × 4096-byte blocks = 867,901,440) was
+**868,950,016** at patch time. Re-derive it fresh via §6's steps
+rather than reusing this number blind if `check_adb`'s content, size,
+or block placement ever changes.
+
+**Port quirk observed after this reboot:** the device came back up
+reachable on `:5555`, not the `:3333` `check_adb` explicitly sets via
+`setprop service.adb.tcp.port 3333`. `:3333` refused the connection
+entirely for several minutes after `sys.boot_completed`. Likely a
+persisted `service.adb.tcp.port`/wireless-debugging property from an
+earlier `adb tcpip 5555` racing with `check_adb`'s own property set
+during boot. Try both ports when reconnecting after a reboot.
+
+If `check_adb` doesn't have the trailing hook line for some other
+device/session (check first with
+`adb shell cat /system/bin/check_adb`), see §6 for exactly how to add
+it safely — including the disk-space lesson below.
 
 ## 6. Reference: how `check_adb` was made persistent
 
@@ -176,6 +207,13 @@ already-allocated data block content:
    slots, `vendor_boot`, `init_boot`, `vbmeta`, `vbmeta_system`,
    `dtbo`, `misc`) is ~2.85GB total; `/data` has ~10GB free.
    `adb pull /dev/block/by-name/<partition>` for each.
+   **Pull to real disk, not a tmpfs-backed path** (e.g. not a
+   `/tmp`-based scratch dir on a Linux host if that host's `/tmp` is
+   tmpfs) — a `super` pull alone is ~2.6GB, and filling a small tmpfs
+   doesn't just fail the copy, it can starve the host's own shell/tool
+   processes of temp space and hang unrelated commands too (observed
+   firsthand: an interactive session's shell stopped responding to
+   *any* command, even `echo`, until the tmpfs was freed).
 2. Find `system_a`'s extent within `super`:
    `adb shell lpdump /dev/block/by-name/super` → e.g. `system_a`
    starts at sector 2048, spans 2812656 sectors (byte offset
