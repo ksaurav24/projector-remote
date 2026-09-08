@@ -1,7 +1,22 @@
+import { WsProvider, useWs } from "./ws/WsContext";
+import { ConnectionStatus } from "./components/ConnectionStatus";
+
+function Shell() {
+  const { connected } = useWs();
+  return (
+    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+      <ConnectionStatus connected={connected} />
+      <main className="pt-10 px-4 max-w-md mx-auto pb-8">
+        <h1 className="text-xl font-semibold text-center py-4">Projector Remote</h1>
+      </main>
+    </div>
+  );
+}
+
 export default function App() {
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center">
-      <h1 className="text-2xl font-semibold">Projector Remote</h1>
-    </div>
+    <WsProvider>
+      <Shell />
+    </WsProvider>
   );
 }
