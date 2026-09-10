@@ -64,7 +64,12 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) sendInitialState(c *wsClient) {
 	appsB, _ := json.Marshal(map[string]any{"type": "apps", "items": h.ctrl.Apps()})
 	statusB, _ := json.Marshal(map[string]any{"type": "status", "connected": h.ctrl.Connected()})
-	for _, b := range [][]byte{appsB, statusB} {
+	msgs := [][]byte{appsB, statusB}
+	if vol, err := h.ctrl.Volume(); err == nil {
+		volB, _ := json.Marshal(map[string]any{"type": "volume", "value": vol})
+		msgs = append(msgs, volB)
+	}
+	for _, b := range msgs {
 		select {
 		case c.send <- b:
 		default:
@@ -80,8 +85,29 @@ func (h *Hub) readPump(c *wsClient) {
 		}
 		if err := Dispatch(context.Background(), h.ctrl, raw); err != nil {
 			log.Printf("wsserver: dispatch error: %v", err)
+			continue
 		}
+		h.maybeBroadcastVolume(raw)
 	}
+}
+
+// maybeBroadcastVolume re-reads the device's volume and broadcasts it
+// to every connected client after a successful set_volume dispatch,
+// so simultaneous viewers' sliders stay in sync with each other (the
+// LAN has no per-client isolation elsewhere either, e.g. Apps()).
+func (h *Hub) maybeBroadcastVolume(raw []byte) {
+	var peek struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(raw, &peek); err != nil || peek.Type != "set_volume" {
+		return
+	}
+	vol, err := h.ctrl.Volume()
+	if err != nil {
+		return
+	}
+	b, _ := json.Marshal(map[string]any{"type": "volume", "value": vol})
+	h.broadcast(b)
 }
 
 func (h *Hub) writePump(c *wsClient) {

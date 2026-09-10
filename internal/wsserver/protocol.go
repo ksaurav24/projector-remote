@@ -17,6 +17,8 @@ type DeviceController interface {
 	Apps() []string
 	RefreshApps(ctx context.Context) ([]string, error)
 	Connected() bool
+	Volume() (int, error)
+	SetVolume(level int) error
 }
 
 type incoming struct {
@@ -26,6 +28,7 @@ type incoming struct {
 	Code  string `json:"code"`
 	Value string `json:"value"`
 	Pkg   string `json:"pkg"`
+	Level int    `json:"level"`
 }
 
 // Dispatch parses one raw client WS message and invokes the matching
@@ -53,6 +56,8 @@ func Dispatch(ctx context.Context, ctrl DeviceController, raw []byte) error {
 	case "refresh_apps":
 		_, err := ctrl.RefreshApps(ctx)
 		return err
+	case "set_volume":
+		return ctrl.SetVolume(msg.Level)
 	default:
 		return fmt.Errorf("wsserver: unknown message type %q", msg.Type)
 	}

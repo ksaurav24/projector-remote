@@ -37,6 +37,7 @@ func readTyped(t *testing.T, conn *websocket.Conn) (string, map[string]any) {
 func TestHub_SendsInitialAppsAndStatusOnConnect(t *testing.T) {
 	ctrl := newMockCtrl()
 	ctrl.connected = true
+	ctrl.volume = 55
 	hub := NewHub(ctrl)
 	srv := httptest.NewServer(hub)
 	defer srv.Close()
@@ -45,7 +46,7 @@ func TestHub_SendsInitialAppsAndStatusOnConnect(t *testing.T) {
 	defer conn.Close()
 
 	seen := map[string]map[string]any{}
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		typ, m := readTyped(t, conn)
 		seen[typ] = m
 	}
@@ -65,6 +66,45 @@ func TestHub_SendsInitialAppsAndStatusOnConnect(t *testing.T) {
 	}
 	if connected, _ := statusMsg["connected"].(bool); !connected {
 		t.Errorf("status connected = %v, want true", statusMsg["connected"])
+	}
+
+	volMsg, ok := seen["volume"]
+	if !ok {
+		t.Fatal("did not receive a volume message")
+	}
+	if v, _ := volMsg["value"].(float64); v != 55 {
+		t.Errorf("volume value = %v, want 55", volMsg["value"])
+	}
+}
+
+func TestHub_BroadcastsVolumeAfterSetVolume(t *testing.T) {
+	ctrl := newMockCtrl()
+	hub := NewHub(ctrl)
+	srv := httptest.NewServer(hub)
+	defer srv.Close()
+
+	conn1 := dialWS(t, srv)
+	defer conn1.Close()
+	conn2 := dialWS(t, srv)
+	defer conn2.Close()
+
+	for i := 0; i < 3; i++ {
+		readTyped(t, conn1)
+		readTyped(t, conn2)
+	}
+
+	if err := conn1.WriteJSON(map[string]any{"type": "set_volume", "level": 30}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	for i, c := range []*websocket.Conn{conn1, conn2} {
+		typ, m := readTyped(t, c)
+		if typ != "volume" {
+			t.Fatalf("client %d got type %q, want volume", i, typ)
+		}
+		if v, _ := m["value"].(float64); v != 30 {
+			t.Errorf("client %d volume = %v, want 30", i, m["value"])
+		}
 	}
 }
 
@@ -104,10 +144,10 @@ func TestHub_BroadcastsStatusToAllClients(t *testing.T) {
 	conn2 := dialWS(t, srv)
 	defer conn2.Close()
 
-	readTyped(t, conn1)
-	readTyped(t, conn1)
-	readTyped(t, conn2)
-	readTyped(t, conn2)
+	for i := 0; i < 3; i++ {
+		readTyped(t, conn1)
+		readTyped(t, conn2)
+	}
 
 	hub.BroadcastStatus(false)
 

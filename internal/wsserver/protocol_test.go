@@ -7,15 +7,18 @@ import (
 )
 
 type mockCtrl struct {
-	mu        sync.Mutex
-	keyEvents []string
-	texts     []string
-	launches  []string
-	moves     [][2]int
-	buttons   []bool
-	refreshed bool
-	connected bool
-	calls     chan string
+	mu           sync.Mutex
+	keyEvents    []string
+	texts        []string
+	launches     []string
+	moves        [][2]int
+	buttons      []bool
+	refreshed    bool
+	connected    bool
+	volume       int
+	volumeErr    error
+	setVolumeLog []int
+	calls        chan string
 }
 
 func newMockCtrl() *mockCtrl {
@@ -85,6 +88,21 @@ func (m *mockCtrl) Connected() bool {
 	return m.connected
 }
 
+func (m *mockCtrl) Volume() (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.volume, m.volumeErr
+}
+
+func (m *mockCtrl) SetVolume(level int) error {
+	m.mu.Lock()
+	m.volume = level
+	m.setVolumeLog = append(m.setVolumeLog, level)
+	m.mu.Unlock()
+	m.note("set_volume")
+	return nil
+}
+
 func TestDispatch_Move(t *testing.T) {
 	m := newMockCtrl()
 	if err := Dispatch(context.Background(), m, []byte(`{"type":"move","dx":4,"dy":-2}`)); err != nil {
@@ -145,6 +163,16 @@ func TestDispatch_RefreshApps(t *testing.T) {
 	}
 	if !m.refreshed {
 		t.Error("expected RefreshApps to be called")
+	}
+}
+
+func TestDispatch_SetVolume(t *testing.T) {
+	m := newMockCtrl()
+	if err := Dispatch(context.Background(), m, []byte(`{"type":"set_volume","level":42}`)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(m.setVolumeLog) != 1 || m.setVolumeLog[0] != 42 {
+		t.Errorf("got %v, want [42]", m.setVolumeLog)
 	}
 }
 
