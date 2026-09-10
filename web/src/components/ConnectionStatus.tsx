@@ -1,19 +1,31 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { WifiHigh, WifiSlash } from "@phosphor-icons/react";
 
 export function ConnectionStatus({ connected }: { connected: boolean }) {
   return (
-    <AnimatePresence>
-      {!connected && (
-        <motion.div
-          initial={{ y: -40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -40, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm font-medium"
+    <div className="flex items-center gap-1.5 text-xs font-medium">
+      {connected ? (
+        <WifiHigh weight="bold" className="size-4 text-orange-500" />
+      ) : (
+        <motion.span
+          animate={{ opacity: [1, 0.4, 1] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
         >
-          Projector offline — reconnecting…
-        </motion.div>
+          <WifiSlash weight="bold" className="size-4 text-red-500" />
+        </motion.span>
       )}
-    </AnimatePresence>
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={connected ? "on" : "off"}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.2 }}
+          className={connected ? "text-neutral-500 dark:text-neutral-400" : "text-red-500"}
+        >
+          {connected ? "Connected" : "Reconnecting"}
+        </motion.span>
+      </AnimatePresence>
+    </div>
   );
 }

@@ -15,8 +15,8 @@ export default defineConfig({
         name: "Projector Remote",
         short_name: "Remote",
         description: "Low-latency remote control for the living room projector",
-        theme_color: "#171717",
-        background_color: "#171717",
+        theme_color: "#f97316",
+        background_color: "#09090b",
         display: "standalone",
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png" },

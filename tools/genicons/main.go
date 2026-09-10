@@ -11,8 +11,8 @@ import (
 
 func main() {
 	sizes := []int{192, 512}
-	bg := color.RGBA{R: 23, G: 23, B: 23, A: 255}
-	fg := color.RGBA{R: 245, G: 245, B: 245, A: 255}
+	bg := color.RGBA{R: 9, G: 9, B: 11, A: 255}     // zinc-950
+	fg := color.RGBA{R: 249, G: 115, B: 22, A: 255} // orange-500
 
 	for _, size := range sizes {
 		img := image.NewRGBA(image.Rect(0, 0, size, size))

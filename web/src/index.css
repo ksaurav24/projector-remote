@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  -webkit-touch-callout: none;
+}

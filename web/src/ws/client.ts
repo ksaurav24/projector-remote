@@ -1,6 +1,7 @@
 export type ServerMessage =
   | { type: "status"; connected: boolean }
-  | { type: "apps"; items: string[] };
+  | { type: "apps"; items: string[] }
+  | { type: "volume"; value: number };
 
 export type ClientMessage =
   | { type: "move"; dx: number; dy: number }
@@ -9,7 +10,8 @@ export type ClientMessage =
   | { type: "key"; code: string }
   | { type: "text"; value: string }
   | { type: "launch"; pkg: string }
-  | { type: "refresh_apps" };
+  | { type: "refresh_apps" }
+  | { type: "set_volume"; level: number };
 
 type Listener = (msg: ServerMessage) => void;
 

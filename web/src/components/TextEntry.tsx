@@ -1,33 +1,86 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowBendDownLeft, X } from "@phosphor-icons/react";
 import { useWs } from "../ws/WsContext";
 
+const DEBOUNCE_MS = 400;
+
+/** A live-typing search field: as you type, the current value is
+ * sent to the device's focused field after a short pause, instead of
+ * requiring an explicit submit. internal/deviceio.Controller.Text is
+ * diff-aware server-side (types only what changed, or backspaces and
+ * retypes on an edit), so re-sending the full value on every pause is
+ * safe and doesn't duplicate text on the TV. */
 export function TextEntry() {
   const { send } = useWs();
   const [value, setValue] = useState("");
+  const timer = useRef<number | null>(null);
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    send({ type: "text", value: trimmed });
-    setValue("");
+  function scheduleSync(next: string) {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      send({ type: "text", value: next });
+    }, DEBOUNCE_MS);
   }
 
+  function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value;
+    setValue(next);
+    scheduleSync(next);
+  }
+
+  function flushNow(next: string) {
+    if (timer.current !== null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    send({ type: "text", value: next });
+  }
+
+  function clear() {
+    setValue("");
+    flushNow("");
+  }
+
+  function submit() {
+    send({ type: "key", code: "KEYCODE_ENTER" });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    };
+  }, []);
+
   return (
-    <form onSubmit={onSubmit} className="mt-4 flex gap-2">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Type to search…"
-        className="flex-1 rounded-xl bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-      />
-      <button
-        type="submit"
-        className="rounded-xl bg-neutral-100 text-neutral-900 px-4 py-2 text-sm font-medium"
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <input
+          type="text"
+          value={value}
+          onChange={onChange}
+          onBlur={() => flushNow(value)}
+          placeholder="Type to search…"
+          className="w-full rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 pl-4 pr-9 py-3 text-sm outline-none focus:border-orange-400 dark:focus:border-orange-500 transition-colors"
+        />
+        {value && (
+          <button
+            onClick={clear}
+            aria-label="Clear"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+          >
+            <X weight="bold" className="size-4" />
+          </button>
+        )}
+      </div>
+      <motion.button
+        whileTap={{ scale: 0.92 }}
+        onClick={submit}
+        aria-label="Go"
+        className="shrink-0 rounded-2xl bg-orange-500 active:bg-orange-600 text-white p-3.5"
       >
-        Send
-      </button>
-    </form>
+        <ArrowBendDownLeft weight="bold" className="size-4" />
+      </motion.button>
+    </div>
   );
 }
