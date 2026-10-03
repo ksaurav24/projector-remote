@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="Projector Player"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:theme="@style/Player">
+
+        <!-- No launcher entry: the Go server starts it with
+             `am start -n com.projectorremote.player/.PlayerActivity`,
+             which needs it exported. -->
+        <activity
+            android:name=".PlayerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape" />
+    </application>
+</manifest>

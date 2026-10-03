@@ -27,6 +27,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
+      "/api": backend,
       "/ws": {
         target: backend,
         ws: true,

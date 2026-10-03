@@ -1,7 +1,37 @@
+import type { NowPlaying } from "../playback/types";
+
+export interface ProjectorSettings {
+  zoom: number;
+  minZoom: number;
+  horizontal: number;
+  vertical: number;
+  mode: "front" | "rear" | "ceiling-front" | "ceiling-rear";
+  features: Record<string, boolean>;
+  corners: Record<Corner, CornerPoint>;
+  cornerMaxX: number;
+  cornerMaxY: number;
+}
+
+export type Corner = "lt" | "rt" | "rb" | "lb";
+
+export interface CornerPoint {
+  x: number;
+  y: number;
+}
+
+export type ProjectorSettingsPatch = Partial<Omit<ProjectorSettings, "features" | "corners">> & {
+  features?: Record<string, boolean>;
+  corners?: Partial<Record<Corner, CornerPoint>>;
+};
+
 export type ServerMessage =
   | { type: "status"; connected: boolean }
   | { type: "apps"; items: string[] }
-  | { type: "volume"; value: number };
+  | { type: "volume"; value: number }
+  | { type: "projector_settings"; settings: ProjectorSettings; revision: number }
+  | { type: "projector_settings_patch"; patch: ProjectorSettingsPatch; revision: number }
+  | { type: "settings_error"; message: string }
+  | { type: "now_playing"; session: NowPlaying | null };
 
 export type ClientMessage =
   | { type: "move"; dx: number; dy: number }
@@ -11,7 +41,25 @@ export type ClientMessage =
   | { type: "text"; value: string }
   | { type: "launch"; pkg: string }
   | { type: "refresh_apps" }
-  | { type: "set_volume"; level: number };
+  | { type: "set_volume"; level: number }
+  | { type: "set_zoom"; percent: number }
+  | { type: "set_keystone"; axis: "horizontal" | "vertical"; angle: number }
+  | { type: "nudge_corner"; corner: "lt" | "rt" | "rb" | "lb"; direction: "up" | "down" | "left" | "right" }
+  | { type: "set_corner"; corner: Corner; x: number; y: number; final?: boolean }
+  | { type: "reset_keystone" }
+  | { type: "set_projection_mode"; mode: ProjectorSettings["mode"] }
+  | { type: "set_projection_feature"; key: string; enabled: boolean }
+  | { type: "focus_start"; direction: "near" | "far" }
+  | { type: "focus_stop" }
+  | { type: "play"; ott: string; titleId: string; seasonId?: string; episodeId?: string }
+  | { type: "set_paused"; paused: boolean }
+  | { type: "seek"; to: number }
+  | { type: "skip"; by: number }
+  | { type: "select_track"; kind: "audio" | "text" | "video"; id: string }
+  | { type: "next" }
+  | { type: "stop" }
+  | { type: "cancel_autoplay" }
+  | { type: "autoplay_now" };
 
 type Listener = (msg: ServerMessage) => void;
 

@@ -1,0 +1,30 @@
+{
+ "status": "ok",
+ "d_lang": "eng",
+ "ott": "nf",
+ "usertoken": "",
+ "main_poster": "https://imgcdn.kim/poster/h/------------------.jpg",
+ "ep_poster": "https://imgcdn.kim/epimg/150/------------------.jpg",
+ "morelike_poster": "https://imgcdn.kim/poster/341/------------------.jpg",
+ "ott_logo": {
+  "logo": "https://tv.imgcdn.kim/newtv/img/nf_logo.png",
+  "maxh": 50,
+  "maxw": 150
+ },
+ "t": "https://whos.amung.us/widget/iyify2030nf.png",
+ "title_name": "",
+ "row": "h",
+ "img_referer": "https://net52.cc",
+ "title": null,
+ "main_id": "999999999999",
+ "year": null,
+ "ua": null,
+ "hdsd": "HD",
+ "type": null,
+ "desc": null,
+ "episodes": [
+  null
+ ],
+ "suggest": null,
+ "error": null
+}

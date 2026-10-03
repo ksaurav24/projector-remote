@@ -5,6 +5,14 @@ Go server that runs directly on the projector, serving a browser PWA
 and driving the device locally (uinput key injection, direct pointer-
 node writes, local `input`/`am` for text and app launch).
 
+The PWA also browses the NetMirror catalog (Netflix, Prime and
+Hotstar skins) and plays titles on the projector in its own player
+app, with audio, subtitle, and quality switching, resume, continue
+watching, and next-episode auto-play, all controlled from the phone.
+Its responsive Picture setup screen controls zoom, focus, manual
+keystone, four-corner mapping, projection orientation, and the
+projector's automatic correction features from a phone or laptop.
+
 ```
 Phone/laptop browser (PWA)
         │  HTTP/WS, LAN
@@ -12,12 +20,19 @@ Phone/laptop browser (PWA)
 Go server — runs ON the projector (cmd/server)
  ├─ HTTP: serves the embedded React build (go:embed web/dist)
  ├─ WS "/ws": JSON message protocol (internal/wsserver)
- └─ internal/deviceio: local command execution
-        │
-        ▼
-   Kernel input subsystem (uinput virtual keyboard, mouse evdev node)
-   + local exec of `input text` / `am start`
+ ├─ HTTP "/api/catalog/*": NetMirror catalog (internal/catalogapi)
+ ├─ internal/deviceio: local command execution
+ └─ internal/playback: playback session, next episode, resume
+        │                        │  WS "/player" (localhost only)
+        ▼                        ▼
+   Kernel input subsystem     Player app (player/, Media3 ExoPlayer)
+   + `input text` / `am`        plays NetMirror's HLS streams
 ```
+
+`docs/netmirror-api.md` covers the NetMirror API,
+`docs/projector-settings.md` documents the picture-control hardware
+interfaces and real-time WebSocket design, and `docs/device-guide.md`
+§8 covers the device quirks playback depends on.
 
 See `docs/device-guide.md` for the operational reference on cross-
 compiling, deploying, and boot-starting Go binaries on this specific
@@ -44,15 +59,42 @@ go generate ./...          # builds the React frontend into web/dist
 GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -o projector-remote ./cmd/server
 ```
 
+The player app (JDK 21; `mise install` inside `player/` sets it up):
+
+```bash
+cd player && ./gradlew assembleDebug
+```
+
 ## Deploy and run (on the projector)
 
 ```bash
-adb push projector-remote /data/local/tmp/projector-remote
-adb shell chmod 755 /data/local/tmp/projector-remote
-adb shell "nohup /data/local/tmp/projector-remote -listen :8080 > /data/local/tmp/projector-remote.log 2>&1 &"
+adb push projector-remote /data/local/tmp/projector-remote.new
+adb shell 'chmod 755 /data/local/tmp/projector-remote.new'
+adb shell 'if [ -e /data/local/tmp/projector-remote ]; then cp /data/local/tmp/projector-remote /data/local/tmp/projector-remote.bak; fi; mv /data/local/tmp/projector-remote.new /data/local/tmp/projector-remote'
+adb shell "ps -A | grep '[p]rojector-remote'"  # note the old PID, if any
+adb shell 'su 0 kill OLD_PID'                  # skip on first install
+adb shell "su 0 sh -c 'nohup /data/local/tmp/projector-remote -listen :8080 > /data/local/tmp/projector-remote.log 2>&1 &'"
+curl -fsS http://PROJECTOR_IP:8080/healthz
 ```
 
-To start automatically on boot, see `docs/device-guide.md` §5 (the
+Root is required for immediate SurfaceFlinger redraws after zoom and
+four-corner geometry changes. The rest of the remote can run as
+`shell`, but picture updates may remain visually stale until Android
+composes another frame. See `docs/projector-settings.md`.
+
+The `.new` → active rename keeps the old process and binary intact
+until the upload finishes; `.bak` provides a simple rollback. Do not
+use `pkill -f` on this device—see `docs/device-guide.md` §4.
+
+Install the player app, which the server launches when you press Play:
+
+```bash
+adb install -r player/app/build/outputs/apk/debug/app-debug.apk
+```
+
+The server makes HTTPS calls to NetMirror, so it needs `dnsrelay`
+running for DNS (`docs/device-guide.md` §7). To start everything
+automatically on boot, see `docs/device-guide.md` §5 (the
 `/data/local/tmp/startup.sh` hook).
 
 Then, from any device on the same private network, open
@@ -69,6 +111,9 @@ there's no runtime discovery mechanism.
   projector (intentional: it's a single-household LAN tool, not a
   multi-tenant service).
 - Text input is ASCII-only.
+- Picture-settings state is warmed once when the server starts. A
+  browser opened during that initial vendor scan may wait several
+  seconds; later PWA opens and refreshes use the cached snapshot.
 - `/dev/uinput` and the pointer input node must be accessible to
   whatever user runs the server (confirmed world-writable / group-
   accessible to `shell` on this device — see `docs/device-guide.md`).
@@ -78,6 +123,7 @@ there's no runtime discovery mechanism.
 ```bash
 go test ./...
 cd web && npm install && npm run build
+cd player && ./gradlew testDebugUnitTest
 ```
 
 ## License

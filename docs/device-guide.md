@@ -11,14 +11,18 @@ and gotcha below was actually run against the device, not assumed.
 - Android 13, SDK 33, kernel 5.15.119, **armeabi-v7a** (32-bit ARM) —
   not arm64.
 - Bootloader unlocked, `userdebug` build. `adb shell` normally runs as
-  `shell` (uid 2000) — enough for everything in this guide (`/data`
-  and `/data/local/tmp` are writable/executable by `shell`, no root
-  needed to deploy or run a server).
-- ADB-over-TCP is persistent across reboots on **port 3333**
+  `shell` (uid 2000), which is enough to build, push, and start ordinary
+  binaries from `/data/local/tmp`. Run `projector-remote` as root,
+  however: its real-time picture controls force a SurfaceFlinger
+  repaint after HWC geometry writes, and that transaction is rejected
+  for `shell`. See §9 and `docs/projector-settings.md`.
+- ADB-over-TCP is persistent across reboots. The boot patch requests
+  **port 3333**, but this unit has also repeatedly come up on **5555**
   (`/system/bin/check_adb` was patched — see §6 — to unconditionally
   enable it every boot; stock firmware disabled ADB by default). The
-  device's **IP changes on every power cycle** (DHCP) — the port does
-  not.
+  because Android's persisted wireless-debugging setting can win the
+  startup race. The device's **IP changes on every power cycle**
+  (DHCP). Try both ports after a reboot.
 - No dedicated `recovery` partition exists on this device, and
   fastbootd support is unconfirmed. Treat any write to `/system` or
   `/vendor` as effectively unrecoverable without a prior backup (see
@@ -33,8 +37,9 @@ and gotcha below was actually run against the device, not assumed.
 
 ```
 adb connect <device-ip>:3333
+adb connect <device-ip>:5555              # if 3333 refuses
 adb devices -l                      # confirm it shows up as "device"
-adb -s <device-ip>:3333 shell       # once multiple targets exist
+adb -s <device-ip>:<working-port> shell   # once multiple targets exist
 ```
 
 Since the IP changes every power cycle, find the current one via your
@@ -46,9 +51,10 @@ wireless clients (a common AP limitation, not a code bug — see
 `internal/discover`'s tests and `cmd/server`'s `-target`/`set_target`
 manual-override path, which exists precisely for this case).
 
-`adb root` may or may not be available/needed — not required for
-anything in this guide (pushing/running a binary from
-`/data/local/tmp` works as plain `shell`).
+`adb root` itself is not required. Pushing and ordinary execution from
+`/data/local/tmp` work as plain `shell`; use the available `su 0`
+wrapper when `projector-remote` needs root for picture repainting or
+NetMirror token access.
 
 ## 3. Cross-compiling a Go binary for this device
 
@@ -84,6 +90,17 @@ adb push mybinary /data/local/tmp/mybinary
 adb shell chmod 755 /data/local/tmp/mybinary
 adb shell "nohup /data/local/tmp/mybinary [args] > /data/local/tmp/mybinary.log 2>&1 &"
 ```
+
+For `projector-remote`, start it through root so zoom and corner mapping
+repaint immediately:
+
+```
+adb shell "su 0 sh -c 'nohup /data/local/tmp/projector-remote -listen :8080 > /data/local/tmp/projector-remote.log 2>&1 &'"
+```
+
+Use an atomic `.new` upload and retain the previous binary when updating a
+running installation; the complete sequence is in
+`docs/projector-settings.md` under Verification.
 
 Check it's alive and read its logs:
 
@@ -250,13 +267,255 @@ already-allocated data block content:
    The on-disk (and therefore next-boot) content is what actually
    matters.
 
+## 7. Tailscale on this device
+
+Tailscale runs natively here, in full **kernel TUN mode** — not
+userspace-networking, and not the Android app. The official static
+`linux/arm` build works as-is via §3's "target plain Linux" trick.
+Verified end-to-end on this unit (2026-09-26): `UDP: true`, a direct
+(non-DERP) connection to another tailnet node, nearest DERP Bengaluru
+at ~110ms, and the `cmd/server` web UI answering HTTP 200 over the
+tailnet in ~0.1s.
+
+What's already in place, no work needed: `CONFIG_TUN=y` is compiled in,
+`/dev/tun` exists (`crw-rw---- system:vpn`, with `/dev/net/tun`
+symlinked to it), `/system/xbin/su` gives root (`su 0 <cmd>` — note
+*not* `su -c`), and `ip`/`iptables`/`ip6tables`/`unshare` are all
+present. `tailscaled` needs root, but only for the TUN device and
+routing — no partition surgery, nothing written to `/system`.
+
+**Two Android-specific quirks will silently break it.** Both cost real
+debugging time; neither produces an error message that points at the
+actual cause.
+
+### Quirk 1: no default route in the `main` routing table
+
+Android does not put a default route in `main`. It lives in a
+per-network table (`wlan0` here), reached through netd's fwmark policy
+rules — `ip rule show` on this device lists ~14 rules and no
+`lookup main` at all.
+
+Tailscale's netmon reads `main` to find the default route. Not finding
+one, it concludes it has no usable network and **silently refuses to
+send UDP**. The symptoms are misleading:
+
+```
+* UDP: false
+* IPv4: (no addr found)
+* Nearest DERP: unknown (no response to latency probes)
+```
+
+plus scattered `dial tcp <ip>:443: connect: network is unreachable`
+errors in `tailscaled.log`, which look like a firewall or a routing
+block. They are not — plain outbound TCP/UDP works fine from root the
+whole time (`toybox nc <derp-ip> 443` succeeds), which is what makes
+this so confusing to chase.
+
+Fix — add the default route to `main` explicitly:
+
+```
+ip route replace default via <gateway> dev wlan0
+```
+
+This flipped `netcheck` to `UDP: true` with a public IPv4 mapping
+immediately. Because no `ip rule` consults `main` on this device, the
+entry is **inert for actual packet routing** — nothing about Android's
+own networking changes. It exists purely so netmon can see it. It does
+not survive a reboot, so it has to be re-added at boot.
+
+### Quirk 2: no `/etc/resolv.conf`, so static Go binaries can't resolve DNS
+
+Android resolves DNS through netd via bionic
+(`android_getaddrinfofornet`). A **static Go binary has no access to
+that**, and this device has no `/etc/resolv.conf` and no `net.dns*`
+properties for Go's resolver to read either (`/etc` is a symlink to
+`/system/etc`, which is read-only, and `resolv.conf` simply doesn't
+exist there). Go therefore falls back to its built-in default
+nameservers and fails:
+
+```
+lookup controlplane.tailscale.com on [::1]:53: read udp ...: connection refused
+```
+
+Note this applies to **any** static Go binary on this device that
+resolves hostnames, not just Tailscale — worth knowing before writing
+another one. `cmd/server` is one: it resolves NetMirror's hosts for
+the catalog and playback (§8).
+
+Go's fallback address is the fix: it tries `127.0.0.1:53` and
+`[::1]:53`, so serving DNS *there* works with **no filesystem changes
+at all**. `cmd/dnsrelay` is a ~60-line UDP forwarder that listens on
+both and relays to the LAN gateway.
+
+Rejected alternative, for the record: overlay-mounting a `resolv.conf`
+over `/system/etc` inside a private mount namespace
+(`unshare -m` + overlayfs, both supported here —
+`CONFIG_OVERLAY_FS=y`). It needs a bind-mount of `/system/etc` to a
+staging dir first, since overlayfs refuses a lowerdir equal to its own
+mountpoint. It works, but mounting over the directory that holds the
+system CA store is a bad trade for one file. The localhost resolver is
+strictly simpler and touches nothing.
+
+TLS is not a problem despite `/etc/ssl` being absent — Tailscale
+embeds its own roots for the control plane, confirmed by a successful
+`https://controlplane.tailscale.com` DERPMap fetch.
+
+### Deploying it
+
+```
+curl -LO https://pkgs.tailscale.com/stable/tailscale_<ver>_arm.tgz
+tar xzf tailscale_<ver>_arm.tgz
+GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -o dnsrelay ./cmd/dnsrelay
+
+adb push dnsrelay deploy/dnsrelay-up.sh deploy/startup.sh /data/local/tmp/
+adb shell 'chmod 755 /data/local/tmp/dnsrelay /data/local/tmp/dnsrelay-up.sh /data/local/tmp/startup.sh'
+
+adb shell 'su 0 mkdir -p /data/local/tmp/tailscale/state'
+adb push tailscale_<ver>_arm/tailscaled tailscale_<ver>_arm/tailscale \
+  deploy/tailscale-up.sh /data/local/tmp/tailscale/
+adb shell 'su 0 chmod 755 /data/local/tmp/tailscale/*'
+```
+
+`dnsrelay` lives outside the Tailscale directory on purpose: the
+remote's NetMirror catalog needs DNS too, and shouldn't stop working
+when Tailscale doesn't come up.
+
+Authenticate once, reading the key from a file so it never lands in
+`ps` output or shell history:
+
+```
+adb shell 'su 0 env HOME=/data/local/tmp/tailscale \
+  /data/local/tmp/tailscale/tailscale \
+  --socket=/data/local/tmp/tailscale/tailscaled.sock up \
+  --auth-key=file:/data/local/tmp/tailscale/.tskey \
+  --hostname=projector --accept-dns=false --accept-routes=false'
+```
+
+then delete the key file. `tailscale up` prints **nothing on success** —
+check `tailscale status`, don't read silence as failure.
+
+`--accept-dns=false` is deliberate: `tailscaled` can't manage DNS on
+this device anyway (it logs `dns: OScfg: {}`), so MagicDNS names won't
+resolve *from* the projector. Reaching the projector *by* its tailnet
+name from elsewhere works normally.
+
+Lock the directory down afterwards — it holds the node key, and the
+control socket is otherwise usable by any app on the device:
+
+```
+adb shell 'su 0 chmod 700 /data/local/tmp/tailscale /data/local/tmp/tailscale/state'
+```
+
+With that, `adb shell` as plain `shell` (uid 2000) can no longer touch
+it; use `su 0` for the CLI.
+
+### Boot-starting it
+
+Uses §5's existing hook. `deploy/startup.sh` launches, in order:
+
+1. `deploy/dnsrelay-up.sh`: waits up to 120s for DHCP to hand out a
+   gateway (at `sys.boot_completed` it usually hasn't yet), then runs
+   `dnsrelay` pointed at it (quirk 2).
+2. `projector-remote`.
+3. `deploy/tailscale-up.sh`: waits for the gateway the same way,
+   re-adds the `main`-table default route (quirk 1), and starts
+   `tailscaled`, which retries DNS until `dnsrelay` is up.
+
+(Until 2026-09-28 `tailscale-up.sh` started `dnsrelay` itself; the
+previous versions are kept on the device as `*.prev`.)
+
+No auth key is needed at boot: `$T/state/tailscaled.state` persists
+both the node key and `WantRunning=true`, so `tailscaled` reconnects on
+its own. Set `HOME` for it — unset, it tries to cache logs in
+`/.cache` on the read-only root.
+
+**Not yet verified across a real reboot** (unlike §5's
+`projector-remote` hook, which was). The wiring is identical in shape,
+but the first power cycle is still the real test — check
+`/data/local/tmp/tailscale/boot.log` afterwards.
+
+## 8. The NetMirror player
+
+The remote can browse NetMirror's catalog and play titles on the
+projector through its own player app (`player/`, Media3 ExoPlayer);
+see `docs/netmirror-api.md` for the API side. Things about this device
+that it depends on, all found the hard way:
+
+- **Go needs to be told where Android keeps CA certificates.** A
+  `GOOS=linux` build only looks in Linux locations (`/etc/ssl/certs`
+  and friends), which don't exist here, so every HTTPS request fails
+  with `x509: certificate signed by unknown authority`. `cmd/server`
+  sets `SSL_CERT_DIR=/system/etc/security/cacerts` at startup unless
+  it's already set. Any other Go binary that makes HTTPS calls here
+  needs the same.
+- **The NetMirror login can come from the phone or the app.** Playback
+  needs the `usertoken` NetMirror issues after its OTP step, and it
+  expires. When it does, playback fails with "NetMirror needs you to
+  log in again" and the phone's Now Playing screen shows a login card
+  with NetMirror's code picture. Entering the code there makes the
+  server call `otp.php` from the projector and save the token to
+  `/data/local/tmp/projector-remote-token` (set by `-token`). The
+  server also reads the token the NetMirror app saves when you log in
+  there, from its MMKV store
+  `/data/data/app.netmirror.newtv/files/mmkv/mmkv.default`. Only root
+  can read that file: fine when started from the boot hook (root), and
+  the server falls back to `su 0 cat` when run by hand as `shell`.
+  Whichever token was issued later wins. See `netmirror-api.md` §5.
+- **The screensaver covers anything started under it.** When idle the
+  projector "dreams" (`com.jixin.screensaver`), and an activity launched
+  with `am start` opens *behind* the dream. The server sends
+  `input keyevent KEYCODE_WAKEUP` before launching the player, which
+  ends the dream (and does nothing when already awake).
+- **Watch history** (positions, continue watching, track preferences)
+  is `/data/local/tmp/projector-remote-state.json`, set by `-state`.
+
+Build and install the player:
+
+```
+cd player
+./gradlew assembleDebug          # JDK 21; `mise install` in player/ provides it
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+It has no launcher icon; the server starts it
+(`am start -n com.projectorremote.player/.PlayerActivity`) and talks to
+it over `ws://127.0.0.1:8080/player`, which accepts local connections
+only.
+
+## 9. Picture settings and real-time geometry
+
+The remote can control the projector's OEM zoom, focus, manual
+keystone, four-corner mapping, projection orientation, and automatic
+correction features. The complete provider/method inventory,
+four-corner property layout, orientation transforms, WebSocket
+protocol, caching strategy, timings, and diagnostic commands are in
+`docs/projector-settings.md`.
+
+Two operational details matter here:
+
+1. Start the server as root. Geometry writes are fast, but forcing the
+   static projected frame to repaint uses root-only SurfaceFlinger
+   transaction 1004.
+2. The complete vendor settings read is slow (11.161 seconds in the
+   latest cold measurement). The server warms it once at startup and
+   serves a maintained in-memory snapshot on later PWA connections.
+   Log line `projector settings cache ready` confirms completion.
+
 ## Related files in this repo
 
 - `README.md` — build/run instructions for `cmd/server` (the control
-  server, normally run on a host machine, not the device).
+  server, which runs directly on the device).
+- `docs/projector-settings.md` — picture-setting providers, geometry,
+  remote protocol, real-time update behavior, and diagnostics.
 - `docs/superpowers/specs/2026-09-08-projector-remote-design.md` —
   overall architecture.
 - `cmd/beacon/` — the mDNS/DNS-SD advertiser built and tested using
   everything in this guide; its `main.go` doc comment repeats the
   `GOOS=linux` requirement inline.
 - `internal/discover/` — the host-side mDNS browse/resolve client.
+- `cmd/dnsrelay/` — the localhost DNS forwarder from §7, needed by
+  any static Go binary on this device that resolves hostnames.
+- `deploy/startup.sh`, `deploy/dnsrelay-up.sh`, `deploy/tailscale-up.sh`
+  — the on-device boot scripts from §5 and §7, kept in the repo so
+  what's running on `/data/local/tmp` is reviewable and re-pushable.
+- `player/` — the Android player app from §8.

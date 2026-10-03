@@ -1,4 +1,17 @@
 @import "tailwindcss";
+@import "@fontsource-variable/bricolage-grotesque/standard.css";
+
+@theme {
+  --font-sans: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Browse is a dark room lit only by what's on screen: true black,
+     warm projector-bulb text, and translucent white surfaces that take
+     on the color of each title's ambient glow. */
+  --color-bulb: #f5efe8;
+  --color-haze: #a59c94;
+  --color-spot: #f97316;
+  --color-spot-ink: #1c0d02;
+}
 
 html {
   color-scheme: light dark;
@@ -9,6 +22,57 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.settings-range {
+  height: 28px;
+  accent-color: var(--color-spot);
+  cursor: pointer;
+}
+
+.settings-range:focus-visible {
+  outline: 2px solid var(--color-spot);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
 * {
   -webkit-touch-callout: none;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Top 10 ranks: marquee-style numerals, hollow so the poster beside
+   them stays the focus. */
+@utility rank-numeral {
+  font-weight: 800;
+  font-stretch: 75%;
+  color: transparent;
+  -webkit-text-stroke: 2px rgb(245 239 232 / 0.5);
+  line-height: 0.78;
+  letter-spacing: -0.06em;
+}
+
+@utility shimmer {
+  background: linear-gradient(100deg, rgb(255 255 255 / 0.05) 30%, rgb(255 255 255 / 0.11) 50%, rgb(255 255 255 / 0.05) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+  }
 }

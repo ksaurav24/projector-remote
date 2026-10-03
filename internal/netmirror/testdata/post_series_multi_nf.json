@@ -1,0 +1,268 @@
+{
+ "status": "ok",
+ "d_lang": "eng",
+ "ott": "nf",
+ "usertoken": "",
+ "main_poster": "https://imgcdn.kim/poster/h/------------------.jpg",
+ "ep_poster": "https://imgcdn.kim/epimg/150/------------------.jpg",
+ "morelike_poster": "https://imgcdn.kim/poster/341/------------------.jpg",
+ "ott_logo": {
+  "logo": "https://tv.imgcdn.kim/newtv/img/nf_logo.png",
+  "maxh": 50,
+  "maxw": 150
+ },
+ "t": "https://whos.amung.us/widget/iyify2030nf.png",
+ "title_name": "",
+ "row": "h",
+ "img_referer": "https://net52.cc",
+ "title": "The Office (U.S.)",
+ "main_id": "70136120",
+ "year": "2005",
+ "ua": "U/A 13+",
+ "runtime": "9 Seasons",
+ "hdsd": "HD",
+ "type": "t",
+ "desc": "This hit comedy chronicles the foibles of disgruntled office workers -- led by deluded boss Michael Scott -- at the Dunder Mifflin paper company.",
+ "moredetails": [
+  {
+   "k": "Creator",
+   "v": "Greg Daniels, Ricky Gervais, Stephen Merchant"
+  },
+  {
+   "k": "Cast",
+   "v": "Steve Carell, John Krasinski, Jenna Fischer, Rainn Wilson, B.J. Novak, Ed Helms, Brian Baumgartner, David Denman, Creed Bratton, Kate Flannery, Mindy Kaling, Angela Kinsey, Paul Lieberstein, Oscar Nuñez, Phyllis Smith"
+  },
+  {
+   "k": "Genre",
+   "v": "Sitcoms, TV Comedies, US TV Shows"
+  },
+  {
+   "k": "This Movie Is",
+   "v": "Witty"
+  },
+  {
+   "k": "Maturity Desc",
+   "v": "Suitable for persons aged 13 and above and under parental guidance for people under age of 13"
+  },
+  {
+   "k": "Maturity Reason",
+   "v": "mature themes"
+  }
+ ],
+ "season": [
+  {
+   "s": "Season 1 (6 EP)",
+   "id": "70023522",
+   "selected": false
+  },
+  {
+   "s": "Season 2 (22 EP)",
+   "id": "70044300",
+   "selected": false
+  },
+  {
+   "s": "Season 3 (23 EP)",
+   "id": "70054868",
+   "selected": false
+  },
+  {
+   "s": "Season 4 (14 EP)",
+   "id": "70070301",
+   "selected": false
+  },
+  {
+   "s": "Season 5 (28 EP)",
+   "id": "70095172",
+   "selected": false
+  },
+  {
+   "s": "Season 6 (26 EP)",
+   "id": "70117372",
+   "selected": false
+  },
+  {
+   "s": "Season 7 (26 EP)",
+   "id": "70149688",
+   "selected": false
+  },
+  {
+   "s": "Season 8 (24 EP)",
+   "id": "70190808",
+   "selected": false
+  },
+  {
+   "s": "Season 9 (23 EP)",
+   "id": "70242419",
+   "selected": true
+  }
+ ],
+ "episodes": [
+  {
+   "complate": "0",
+   "id": "70286845",
+   "t": "New Guys",
+   "ep": "1",
+   "ep_desc": "Jim and Dwight are thrown off by the arrival of two young employees that the others dub \"the new Jim\" and \"Dwight Jr.\" Andy returns from training.",
+   "info": [
+    "E1",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286846",
+   "t": "Roy's Wedding",
+   "ep": "2",
+   "ep_desc": "Pam and Jim go to Roy's wedding, where his toast takes everyone by surprise -- causing Pam and Jim to examine their own relationship.",
+   "info": [
+    "E2",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286847",
+   "t": "Andy's Ancestry",
+   "ep": "3",
+   "ep_desc": "Andy learns he is related to Michelle Obama, causing a stir around the office. Jim's elaborate trick has Dwight thinking Jim is an Asian man.",
+   "info": [
+    "E3",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286848",
+   "t": "Work Bus",
+   "ep": "4",
+   "ep_desc": "After Jim convinces Dwight that the building is unsafe, Dwight rents a bus and sets up the office inside -- and eventually they hit the road.",
+   "info": [
+    "E4",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286849",
+   "t": "Here Comes Treble",
+   "ep": "5",
+   "ep_desc": "It's Halloween in the office, and Andy invites his college a cappella group to perform, which leads to a confrontation with his frenemy Broccoli Rob.",
+   "info": [
+    "E5",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286850",
+   "t": "The Boat",
+   "ep": "6",
+   "ep_desc": "Andy must man up when his dad blows all of the family's money. When Dwight is interviewed on local radio, Jim tortures him with bizarre call-ins.",
+   "info": [
+    "E6",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286851",
+   "t": "The Whale",
+   "ep": "7",
+   "ep_desc": "To help Dwight overcome his greatest professional handicap -- selling to women -- Pam and the ladies teach him how to interact with female clients.",
+   "info": [
+    "E7",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286852",
+   "t": "The Target",
+   "ep": "8",
+   "ep_desc": "Angela discovers her husband's affair and goes to Dwight for help. Jim needs a favor from Stanley and Phyllis, who milk it for all it's worth.",
+   "info": [
+    "E8",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286853",
+   "t": "Dwight Christmas",
+   "ep": "9",
+   "ep_desc": "When the party planning committee drops the ball on the Christmas party, Dwight gets everyone to celebrate a traditional Schrute German Christmas.",
+   "info": [
+    "E9",
+    "S9",
+    "22m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "70286854",
+   "t": "Lice",
+   "ep": "10",
+   "ep_desc": "Pam accidentally brings lice into the office and lets Meredith take the fall. Meanwhile, Jim woos a potential business associate in Philadelphia.",
+   "info": [
+    "E10",
+    "S9",
+    "22m"
+   ]
+  }
+ ],
+ "nextPageShow": 1,
+ "nextPage": 2,
+ "nextPageSeason": "70242419",
+ "lang": [
+  {
+   "l": "English",
+   "s": "eng"
+  }
+ ],
+ "last_ep": "70286845",
+ "resume": "",
+ "suggest": [
+  {
+   "id": "81021929"
+  },
+  {
+   "id": "70281562"
+  },
+  {
+   "id": "80061132"
+  },
+  {
+   "id": "70153404"
+  },
+  {
+   "id": "70153373"
+  },
+  {
+   "id": "70143830"
+  },
+  {
+   "id": "81516751"
+  },
+  {
+   "id": "80036165"
+  },
+  {
+   "id": "80998491"
+  },
+  {
+   "id": "80113701"
+  },
+  {
+   "id": "80014749"
+  }
+ ],
+ "error": null
+}

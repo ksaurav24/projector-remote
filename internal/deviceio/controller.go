@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 var pkgNameRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_.]*$`)
@@ -65,6 +66,17 @@ type Controller struct {
 	textMu         sync.Mutex
 	lastSyncedText string
 	textRun        textRunner
+
+	projectorMu      sync.Mutex
+	projectorReadMu  sync.Mutex
+	settingsRun      contentCaller
+	settingsSlots    chan struct{}
+	propertyRun      propertyCaller
+	cornerSteps      map[string]CornerPoint
+	cornerStepsReady bool
+
+	focusMu    sync.Mutex
+	focusTimer *time.Timer
 }
 
 // newController builds a Controller from already-open event writers.
@@ -72,7 +84,14 @@ type Controller struct {
 // tests use this directly with fakes (and may override c.textRun with
 // their own fake textRunner for Text-specific assertions).
 func newController(keyboard, mouse eventWriter) *Controller {
-	return &Controller{keyboard: keyboard, mouse: mouse, textRun: execTextRunner{}}
+	return &Controller{
+		keyboard:      keyboard,
+		mouse:         mouse,
+		textRun:       execTextRunner{},
+		settingsRun:   execContentCaller{},
+		settingsSlots: make(chan struct{}, 3),
+		propertyRun:   execPropertyCaller{},
+	}
 }
 
 func (c *Controller) KeyEvent(name string) error {

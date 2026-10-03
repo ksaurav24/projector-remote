@@ -1,0 +1,199 @@
+{
+ "status": "ok",
+ "d_lang": "eng",
+ "ott": "hs",
+ "usertoken": "",
+ "main_poster": "https://imgcdn.kim/hs/h/------------------.jpg",
+ "ep_poster": "https://imgcdn.kim/hsepimg/------------------.jpg",
+ "morelike_poster": "https://imgcdn.kim/hs/v/166/------------------.jpg",
+ "ott_logo": {
+  "logo": "https://tv.imgcdn.kim/newtv/img/hs_logo22.png",
+  "maxh": 80,
+  "maxw": 100
+ },
+ "t": "https://whos.amung.us/widget/iyify2030hs.png",
+ "title_name": "",
+ "row": "v",
+ "img_referer": "https://net52.cc",
+ "title": "Pritam and Pedro",
+ "main_id": "1271643838",
+ "year": "2026",
+ "ua": "U/A 16+",
+ "runtime": "1 Season",
+ "hdsd": "HD",
+ "type": "t",
+ "desc": "Pedro and Pritam are distinct as night and day, but together they laugh every problem away. It's a battle of data versus danda, but a kahani of fun and chaos.",
+ "oin": null,
+ "moredetails": [
+  {
+   "k": "IMDB Rating",
+   "v": "7.5"
+  },
+  {
+   "k": "IMDB Genres",
+   "v": "Comedy, Crime, Drama, Mystery, Thriller"
+  },
+  {
+   "k": "Director",
+   "v": "Rituja Jayant, Amit Satyaveer Singh, Avinash Arun"
+  },
+  {
+   "k": "Cast",
+   "v": "Arshad Warsi, Boman Irani, Mona Singh, Vikrant Massey"
+  },
+  {
+   "k": "HotStar Genres",
+   "v": "Thriller, Comedy, Mystery, Drama, Cop Drama, Chase, Investigative, Technology, Race Against Time, Feel Good, Heart-Warming, Curious"
+  }
+ ],
+ "season": [
+  {
+   "s": "Season 1 (6 EP)",
+   "id": "1271656727",
+   "selected": true
+  }
+ ],
+ "episodes": [
+  {
+   "complate": "0",
+   "id": "1271656728",
+   "t": "Punishment Posting",
+   "s": "S1",
+   "ep": "1",
+   "info": [
+    "E1:S1",
+    "3 Jul 2026",
+    "36m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "1271656729",
+   "t": "The Missing Boy",
+   "s": "S1",
+   "ep": "2",
+   "info": [
+    "E2:S1",
+    "3 Jul 2026",
+    "33m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "1271656730",
+   "t": "The Blackmail",
+   "s": "S1",
+   "ep": "3",
+   "info": [
+    "E3:S1",
+    "3 Jul 2026",
+    "33m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "1271656731",
+   "t": "The Blue Whale",
+   "s": "S1",
+   "ep": "4",
+   "info": [
+    "E4:S1",
+    "3 Jul 2026",
+    "32m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "1271656732",
+   "t": "Catch Me If You Can",
+   "s": "S1",
+   "ep": "5",
+   "info": [
+    "E5:S1",
+    "3 Jul 2026",
+    "37m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "1271656733",
+   "t": "The Trap",
+   "s": "S1",
+   "ep": "6",
+   "info": [
+    "E6:S1",
+    "3 Jul 2026",
+    "35m"
+   ]
+  }
+ ],
+ "nextPageShow": 0,
+ "nextPage": 2,
+ "nextPageSeason": "1271656727",
+ "lang": [
+  {
+   "l": "Malayalam",
+   "s": "mal"
+  },
+  {
+   "l": "Telugu",
+   "s": "tel"
+  },
+  {
+   "l": "Kannada",
+   "s": "kan"
+  },
+  {
+   "l": "Hindi",
+   "s": "hin"
+  },
+  {
+   "l": "Tamil",
+   "s": "tam"
+  },
+  {
+   "l": "Bengali",
+   "s": "ben"
+  },
+  {
+   "l": "Unknown",
+   "s": "und"
+  },
+  {
+   "l": "Marathi",
+   "s": "mar"
+  }
+ ],
+ "last_ep": "1271656728",
+ "resume": "",
+ "suggest": [
+  {
+   "id": "1971001532"
+  },
+  {
+   "id": "1271392512"
+  },
+  {
+   "id": "1260102772"
+  },
+  {
+   "id": "1971000602"
+  },
+  {
+   "id": "1000213089"
+  },
+  {
+   "id": "1271525297"
+  },
+  {
+   "id": "1971001480"
+  },
+  {
+   "id": "1971002964"
+  },
+  {
+   "id": "1260123679"
+  }
+ ],
+ "error": null
+}

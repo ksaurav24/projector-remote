@@ -1,0 +1,223 @@
+{
+ "status": "ok",
+ "d_lang": "eng",
+ "ott": "nf",
+ "usertoken": "",
+ "main_poster": "https://imgcdn.kim/poster/h/------------------.jpg",
+ "ep_poster": "https://imgcdn.kim/epimg/150/------------------.jpg",
+ "morelike_poster": "https://imgcdn.kim/poster/341/------------------.jpg",
+ "ott_logo": {
+  "logo": "https://tv.imgcdn.kim/newtv/img/nf_logo.png",
+  "maxh": 50,
+  "maxw": 150
+ },
+ "t": "https://whos.amung.us/widget/iyify2030nf.png",
+ "title_name": "",
+ "row": "h",
+ "img_referer": "https://net52.cc",
+ "title": "Shaque: Trust No One",
+ "main_id": "81762865",
+ "year": "2026",
+ "ua": "U/A 16+",
+ "runtime": "1 Seasons",
+ "hdsd": "HD",
+ "type": "t",
+ "desc": "When her newborn vanishes from a hospital, a mother unearths chilling secrets close to home in this mystery thriller starring Parineeti Chopra.",
+ "moredetails": [
+  {
+   "k": "Creator",
+   "v": "Rensil D'Silva, Siddharth P Malhotra"
+  },
+  {
+   "k": "Director",
+   "v": "Rensil D'Silva"
+  },
+  {
+   "k": "Cast",
+   "v": "Parineeti Chopra, Jennifer Winget, Tahir Raj Bhasin, Soni Razdan, Anup Soni, Sumeet Vyas, Harleen Sethi, Dhruv Chaudhary"
+  },
+  {
+   "k": "Genre",
+   "v": "TV Dramas, TV Mysteries, Crime TV Shows, TV Thrillers, Hindi-Language TV Shows"
+  },
+  {
+   "k": "This Movie Is",
+   "v": "Psychological, Suspenseful, Mystery, Slow Burn, Police Detectives, Indian, Mind Game, Thriller, Drama, TV"
+  },
+  {
+   "k": "Maturity Desc",
+   "v": "Suitable for persons aged 16 and above and under parental guidance for people under age of 16"
+  },
+  {
+   "k": "Maturity Reason",
+   "v": "self-harm, violence, substances, gore, suicide, tobacco use"
+  }
+ ],
+ "season": [
+  {
+   "s": "Season 1 (7 EP)",
+   "id": "81762866",
+   "selected": true
+  }
+ ],
+ "episodes": [
+  {
+   "complate": "0",
+   "id": "81783844",
+   "t": "Episode 1",
+   "ep": "1",
+   "ep_desc": "After their newborn disappears from the hospital, Anvita and Alok receive disturbing birthday packages each year that keep the search alive.",
+   "info": [
+    "E1",
+    "S1",
+    "38m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "81783845",
+   "t": "Episode 2",
+   "ep": "2",
+   "ep_desc": "A potential lead forces Anvita to question her search for her missing daughter. Meanwhile, Madhu escalates her efforts to halt the investigation.",
+   "info": [
+    "E2",
+    "S1",
+    "37m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "81783846",
+   "t": "Episode 3",
+   "ep": "3",
+   "ep_desc": "Anvita's suspicions grow as she examines an old photo for clues, while her visions intensify. A mysterious death raises flags for Inspector Khurana.",
+   "info": [
+    "E3",
+    "S1",
+    "36m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "81783847",
+   "t": "Episode 4",
+   "ep": "4",
+   "ep_desc": "An unexpected confession adds a new layer to the case. Apeksha's birthday party is thrown into turmoil when Anvita makes a shocking accusation.",
+   "info": [
+    "E4",
+    "S1",
+    "44m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "81783848",
+   "t": "Episode 5",
+   "ep": "5",
+   "ep_desc": "A threatening message deepens the rift between Anvita and Alok while she seeks crucial evidence. The police track down a woman tied to Rhea's birth.",
+   "info": [
+    "E5",
+    "S1",
+    "38m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "81783849",
+   "t": "Episode 6",
+   "ep": "6",
+   "ep_desc": "As the mystery behind Anvita's hallucinations unravels, Madhu finds herself cornered. A tragic incident disrupts the investigation.",
+   "info": [
+    "E6",
+    "S1",
+    "32m"
+   ]
+  },
+  {
+   "complate": "0",
+   "id": "81783850",
+   "t": "Episode 7",
+   "ep": "7",
+   "ep_desc": "Shreya's revelation begins to connect the pieces of Apeksha's disappearance as the truth finally comes to light.",
+   "info": [
+    "E7",
+    "S1",
+    "40m"
+   ]
+  }
+ ],
+ "nextPageShow": 0,
+ "nextPage": 2,
+ "nextPageSeason": "81762866",
+ "lang": [
+  {
+   "l": "English",
+   "s": "eng"
+  },
+  {
+   "l": "Spanish",
+   "s": "spa"
+  },
+  {
+   "l": "Hindi",
+   "s": "hin"
+  },
+  {
+   "l": "Polish",
+   "s": "pol"
+  },
+  {
+   "l": "Portuguese",
+   "s": "por"
+  },
+  {
+   "l": "Tamil",
+   "s": "tam"
+  },
+  {
+   "l": "Telugu",
+   "s": "tel"
+  }
+ ],
+ "last_ep": "81783844",
+ "resume": "",
+ "suggest": [
+  {
+   "id": "81387257"
+  },
+  {
+   "id": "81661375"
+  },
+  {
+   "id": "83001420"
+  },
+  {
+   "id": "81076113"
+  },
+  {
+   "id": "81681817"
+  },
+  {
+   "id": "81922895"
+  },
+  {
+   "id": "82127717"
+  },
+  {
+   "id": "81603806"
+  },
+  {
+   "id": "81090319"
+  },
+  {
+   "id": "81183494"
+  },
+  {
+   "id": "81787058"
+  },
+  {
+   "id": "82134666"
+  }
+ ],
+ "error": null
+}

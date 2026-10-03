@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"projectorremote/internal/deviceio"
 )
 
 func dialWS(t *testing.T, srv *httptest.Server) *websocket.Conn {
@@ -38,7 +40,7 @@ func TestHub_SendsInitialAppsAndStatusOnConnect(t *testing.T) {
 	ctrl := newMockCtrl()
 	ctrl.connected = true
 	ctrl.volume = 55
-	hub := NewHub(ctrl)
+	hub := NewHub(ctrl, newMockPlayback())
 	srv := httptest.NewServer(hub)
 	defer srv.Close()
 
@@ -46,7 +48,7 @@ func TestHub_SendsInitialAppsAndStatusOnConnect(t *testing.T) {
 	defer conn.Close()
 
 	seen := map[string]map[string]any{}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		typ, m := readTyped(t, conn)
 		seen[typ] = m
 	}
@@ -79,7 +81,7 @@ func TestHub_SendsInitialAppsAndStatusOnConnect(t *testing.T) {
 
 func TestHub_BroadcastsVolumeAfterSetVolume(t *testing.T) {
 	ctrl := newMockCtrl()
-	hub := NewHub(ctrl)
+	hub := NewHub(ctrl, newMockPlayback())
 	srv := httptest.NewServer(hub)
 	defer srv.Close()
 
@@ -88,7 +90,7 @@ func TestHub_BroadcastsVolumeAfterSetVolume(t *testing.T) {
 	conn2 := dialWS(t, srv)
 	defer conn2.Close()
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		readTyped(t, conn1)
 		readTyped(t, conn2)
 	}
@@ -110,7 +112,7 @@ func TestHub_BroadcastsVolumeAfterSetVolume(t *testing.T) {
 
 func TestHub_DispatchesClientMessages(t *testing.T) {
 	ctrl := newMockCtrl()
-	hub := NewHub(ctrl)
+	hub := NewHub(ctrl, newMockPlayback())
 	srv := httptest.NewServer(hub)
 	defer srv.Close()
 
@@ -133,9 +135,93 @@ func TestHub_DispatchesClientMessages(t *testing.T) {
 	}
 }
 
+func TestHub_ReadsCommandsWhileInitialSettingsLoad(t *testing.T) {
+	ctrl := newMockCtrl()
+	ctrl.settingsDelay = 500 * time.Millisecond
+	hub := NewHub(ctrl, newMockPlayback())
+	srv := httptest.NewServer(hub)
+	defer srv.Close()
+
+	conn := dialWS(t, srv)
+	defer conn.Close()
+	if err := conn.WriteJSON(map[string]any{"type": "key", "code": "KEYCODE_HOME"}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	select {
+	case call := <-ctrl.calls:
+		if call != "key:KEYCODE_HOME" {
+			t.Fatalf("got call %q", call)
+		}
+	case <-time.After(150 * time.Millisecond):
+		t.Fatal("command was blocked by the initial settings scan")
+	}
+}
+
+func TestHub_ReusesWarmedSettingsOnReconnect(t *testing.T) {
+	ctrl := newMockCtrl()
+	ctrl.settings = deviceio.ProjectorSettings{Zoom: 73, Features: map[string]bool{}, Corners: map[string]deviceio.CornerPoint{}}
+	hub := NewHub(ctrl, newMockPlayback())
+	srv := httptest.NewServer(hub)
+	defer srv.Close()
+
+	first := dialWS(t, srv)
+	for i := 0; i < 5; i++ {
+		readTyped(t, first)
+	}
+	first.Close()
+
+	ctrl.settingsDelay = 2 * time.Second
+	second := dialWS(t, srv)
+	defer second.Close()
+	_ = second.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+	seenSettings := false
+	for i := 0; i < 5; i++ {
+		typ, msg := readTyped(t, second)
+		if typ == "projector_settings" {
+			seenSettings = true
+			settings := msg["settings"].(map[string]any)
+			if settings["zoom"] != float64(73) {
+				t.Fatalf("zoom = %v", settings["zoom"])
+			}
+		}
+	}
+	if !seenSettings {
+		t.Fatal("reconnected client did not receive cached settings")
+	}
+}
+
+func TestHub_BroadcastsSettingsPatchWithoutFullRefresh(t *testing.T) {
+	ctrl := newMockCtrl()
+	ctrl.settings = deviceio.ProjectorSettings{Zoom: 93, Features: map[string]bool{}}
+	hub := NewHub(ctrl, newMockPlayback())
+	srv := httptest.NewServer(hub)
+	defer srv.Close()
+
+	conn := dialWS(t, srv)
+	defer conn.Close()
+	for i := 0; i < 5; i++ {
+		readTyped(t, conn)
+	}
+	ctrl.settingsDelay = 2 * time.Second
+
+	if err := conn.WriteJSON(map[string]any{"type": "set_zoom", "percent": 90}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+	typ, msg := readTyped(t, conn)
+	if typ != "projector_settings_patch" {
+		t.Fatalf("got type %q, want projector_settings_patch", typ)
+	}
+	patch, _ := msg["patch"].(map[string]any)
+	if patch["zoom"] != float64(90) {
+		t.Fatalf("patch = %v", patch)
+	}
+}
+
 func TestHub_BroadcastsStatusToAllClients(t *testing.T) {
 	ctrl := newMockCtrl()
-	hub := NewHub(ctrl)
+	hub := NewHub(ctrl, newMockPlayback())
 	srv := httptest.NewServer(hub)
 	defer srv.Close()
 
@@ -144,7 +230,7 @@ func TestHub_BroadcastsStatusToAllClients(t *testing.T) {
 	conn2 := dialWS(t, srv)
 	defer conn2.Close()
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		readTyped(t, conn1)
 		readTyped(t, conn2)
 	}

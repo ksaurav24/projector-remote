@@ -1,0 +1,165 @@
+{
+ "status": "ok",
+ "d_lang": "hin",
+ "ott": "pv",
+ "usertoken": "",
+ "main_poster": "https://imgcdn.kim/pv/c/------------------.jpg",
+ "ep_poster": "https://imgcdn.kim/pvepimg/341/------------------.jpg",
+ "morelike_poster": "https://imgcdn.kim/pv/341/------------------.jpg",
+ "ott_logo": {
+  "logo": "https://tv.imgcdn.kim/newtv/img/prime_logo.png",
+  "maxh": 50,
+  "maxw": 100
+ },
+ "t": "https://whos.amung.us/widget/iyify2030pv.png",
+ "title_name": "",
+ "row": "h",
+ "img_referer": "https://net52.cc",
+ "title": "Gram Chikitsalay",
+ "main_id": "0O0Y3RM5NIGN9SMVL6098UHNBR",
+ "year": "2025",
+ "ua": "U/A 16+",
+ "hdsd": "HD",
+ "type": "t",
+ "desc": "The young, idealistic and brilliant Dr. Prabhat, takes charge of a neglected Primary Health Centre in a North India Village hoping to bring about much needed changes only to realise it is he who will have do change before anything else.",
+ "moredetails": [
+  {
+   "k": "IMDB Rating",
+   "v": "7.2"
+  },
+  {
+   "k": "IMDB Genres",
+   "v": "Comedy"
+  },
+  {
+   "k": "Cast",
+   "v": "Amol Parashar, Vinay Pathak, Anandeshwar Dwivedi, Akash Makhija, Akansha Ranjan Kapoor, Garima Vikrant Singh"
+  },
+  {
+   "k": "Director",
+   "v": "Rahul Pandey"
+  },
+  {
+   "k": "Studio",
+   "v": "The Viral Fever"
+  },
+  {
+   "k": "Maturity Desc",
+   "v": "Suitable for ages 16+"
+  },
+  {
+   "k": "Maturity Reason",
+   "v": "violence, foul language, alcohol use, tobacco depictions"
+  }
+ ],
+ "season": [
+  {
+   "s": "Season 1 (5 EP)",
+   "id": "0O0Y3RM5NIGN9SMVL6098UHNBR",
+   "selected": false
+  },
+  {
+   "s": "Season 2 (5 EP)",
+   "id": "0NRH5KEPWHFDRA9QZYEOV12X0W",
+   "selected": true
+  }
+ ],
+ "episodes": [
+  {
+   "id": "0OBPABJMG6CQGU80CFDAK0EDLT",
+   "t": "Udhaar Aur Ghoos",
+   "ep": "1",
+   "ep_desc": "As PHC patients rise, Prabhat struggles with medicine shortages while Dak Sab grows jealous. The Adarsh PHC Award may save them.",
+   "info": [
+    "Jun 23, 2026",
+    "U/A 16 ",
+    "38m"
+   ]
+  },
+  {
+   "id": "0N1T4UF2CBWQA21WQ2XQ0R57V2",
+   "t": "Mehanga Shaukh",
+   "ep": "2",
+   "ep_desc": "Gobind faces bribery to secure his job as Prabhat prepares the PHC for competition, while Dak Sab plots against them.",
+   "info": [
+    "Jun 23, 2026",
+    "U/A 16 ",
+    "30m"
+   ]
+  },
+  {
+   "id": "0OHNDE2LHXH3CKBMHVSQLFWAAX",
+   "t": "Dekha-Dekhi Aur Checking",
+   "ep": "3",
+   "ep_desc": "Dak Sab's fake puja lures the PHC staff away before inspection, wrecking their Adarsh PHC Award hopes as the Adarsh PHC jury nears.",
+   "info": [
+    "Jun 23, 2026",
+    "U/A 16 ",
+    "34m"
+   ]
+  },
+  {
+   "id": "0SS73CG83P26FKHQT76QAKGACA",
+   "t": "Pakadaua Vivaah",
+   "ep": "4",
+   "ep_desc": "As the jury inspects the PHC, Gobind's chaotic marriage falters while Prabhat and Gargi have a face-off at his wedding.",
+   "info": [
+    "Jun 23, 2026",
+    "U/A 16 ",
+    "35m"
+   ]
+  },
+  {
+   "id": "0NJ4MAOEGIWX6AOO68884V0TNW",
+   "t": "Daayan",
+   "ep": "5",
+   "ep_desc": "While the Adarsh PHC award results are about to be out, Prabhat and Gargi unite to save a mother and child, restoring hope and faith in medicine.",
+   "info": [
+    "Jun 23, 2026",
+    "U/A 16 ",
+    "39m"
+   ]
+  }
+ ],
+ "nextPageShow": 0,
+ "nextPage": 2,
+ "nextPageSeason": "0NRH5KEPWHFDRA9QZYEOV12X0W",
+ "lang": [
+  {
+   "l": "Hindi",
+   "s": "hin"
+  }
+ ],
+ "last_ep": "0OBPABJMG6CQGU80CFDAK0EDLT",
+ "resume": "",
+ "suggest": [
+  {
+   "id": "0M6M0WL6055ME2MXTHMS46KY9U"
+  },
+  {
+   "id": "0GN9M7AXIL5MRYNIGA4SVDUYV6"
+  },
+  {
+   "id": "0RX6DAWDA78XNPIMMIRTHTEORA"
+  },
+  {
+   "id": "0G9IEI3SEQI0JSGUFFWFQOEBTR"
+  },
+  {
+   "id": "0HWHB2664DIOIRSTQNVLA886YM"
+  },
+  {
+   "id": "0R72QKCBMN61LXRJBPZD3FC38H"
+  },
+  {
+   "id": "0TZKIMN8ZELD6R8LCYRVG11ZJC"
+  },
+  {
+   "id": "0OSFGLHMW3ACF8PDK8TDBLF3FN"
+  },
+  {
+   "id": "0FBAC3FQJEQH5F4VEU3NUCRHMA"
+  }
+ ],
+ "error": null
+}

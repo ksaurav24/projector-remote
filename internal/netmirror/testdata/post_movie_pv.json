@@ -1,0 +1,108 @@
+{
+ "status": "ok",
+ "d_lang": "eng",
+ "ott": "pv",
+ "usertoken": "",
+ "main_poster": "https://imgcdn.kim/pv/c/------------------.jpg",
+ "ep_poster": "https://imgcdn.kim/pvepimg/341/------------------.jpg",
+ "morelike_poster": "https://imgcdn.kim/pv/341/------------------.jpg",
+ "ott_logo": {
+  "logo": "https://tv.imgcdn.kim/newtv/img/prime_logo.png",
+  "maxh": 50,
+  "maxw": 100
+ },
+ "t": "https://whos.amung.us/widget/iyify2030pv.png",
+ "title_name": "",
+ "row": "h",
+ "img_referer": "https://net52.cc",
+ "title": "Obsession",
+ "main_id": "0M1G8W35R6LZYZ25OYBKKX3PBF",
+ "year": "2026",
+ "ua": "U/A 18+ [A]",
+ "runtime": "1h 50m",
+ "hdsd": "HD",
+ "type": "m",
+ "desc": "After breaking the mysterious \"One Wish Willow\" to win his crush's heart, a hopeless romantic finds himself getting exactly what he asked for but soon discovers that some desires come at a dark, sinister price.",
+ "moredetails": [
+  {
+   "k": "IMDB Rating",
+   "v": "8"
+  },
+  {
+   "k": "IMDB Genres",
+   "v": "Horror, Romance, Thriller"
+  },
+  {
+   "k": "Cast",
+   "v": "Michael Johnston, Inde Navarrette, Cooper Tomlinson, Megan Lawless, Andy Richter, Haley Fitzgerald, Darin Toonder, Anthony Pavone, Justice, Anthony Casabianca, Chloe Breen"
+  },
+  {
+   "k": "Director",
+   "v": "Curry Barker"
+  },
+  {
+   "k": "Writer",
+   "v": "Curry Barker"
+  },
+  {
+   "k": "Producer",
+   "v": "James Harris, Haley Nicole Johnson, Christian Mercuri, Roman Viaris"
+  },
+  {
+   "k": "Studio",
+   "v": "Focus Features"
+  },
+  {
+   "k": "Maturity Desc",
+   "v": "Suitable for ages 18 and older"
+  },
+  {
+   "k": "Maturity Reason",
+   "v": "violence, foul language, sexual content, nudity, alcohol use, tobacco depictions, Imitable behaviour"
+  }
+ ],
+ "resume": "",
+ "lang": [
+  {
+   "l": "English",
+   "s": "eng"
+  },
+  {
+   "l": "Hindi",
+   "s": "hin"
+  }
+ ],
+ "episodes": [
+  null
+ ],
+ "suggest": [
+  {
+   "id": "0K8JKDT1NHMZLLVXOR9Q7G1B7U"
+  },
+  {
+   "id": "0H26YCPSTI7LD1PWXNGNEF0JLD"
+  },
+  {
+   "id": "0S4SPZTOP4N20TUDYIWLZCB0AR"
+  },
+  {
+   "id": "0GV27OXZFL3IS4Y7KPMOUFOQHJ"
+  },
+  {
+   "id": "0LLCOSH06P1NFR3OC4TY8AYBVF"
+  },
+  {
+   "id": "0JMNHR52MPWZT2GCRJDIYDUDQ8"
+  },
+  {
+   "id": "0HSW9ZMCSAEFAJNRV6JD2CD8B9"
+  },
+  {
+   "id": "0NO2Y57QA4TYD94F0KDJF3RZAG"
+  },
+  {
+   "id": "0NHIN3TGAI9L7VZ45RS52RHUPL"
+  }
+ ],
+ "error": null
+}
