@@ -1,6 +1,7 @@
 package com.projectorremote.player
 
 import android.app.Activity
+import android.net.Uri
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -21,7 +22,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
@@ -282,9 +283,30 @@ class PlayerActivity : Activity() {
         val p = msg.optJSONObject("prefs")
         applyPrefs(Prefs(p?.optString("audio") ?: "", p?.optString("text") ?: "", p?.optString("quality") ?: ""))
 
-        // Every playlist and segment request must carry the Referer.
-        http.setDefaultRequestProperties(mapOf("Referer" to msg.optString("referer")))
-        val source = HlsMediaSource.Factory(http).createMediaSource(MediaItem.fromUri(msg.optString("url")))
+        // The server supplies a provider-independent stream contract. Reset
+        // headers on every load so one source cannot inherit another's cookies.
+        val headers = mutableMapOf<String, String>()
+        msg.optJSONObject("headers")?.let { values ->
+            values.keys().forEach { key -> headers[key] = values.getString(key) }
+        }
+        msg.optString("referer").takeIf { it.isNotBlank() }?.let { headers["Referer"] = it }
+        http.setDefaultRequestProperties(headers)
+        val subtitles = mutableListOf<MediaItem.SubtitleConfiguration>()
+        msg.optJSONArray("subtitles")?.let { values ->
+            for (i in 0 until values.length()) {
+                val sub = values.getJSONObject(i)
+                subtitles += MediaItem.SubtitleConfiguration.Builder(Uri.parse(sub.getString("url")))
+                    .setMimeType(sub.optString("mimeType", "text/vtt"))
+                    .setLanguage(sub.optString("language").takeIf { it.isNotBlank() })
+                    .setLabel(sub.optString("label"))
+                    .setSelectionFlags(if (sub.optBoolean("default")) C.SELECTION_FLAG_DEFAULT else 0)
+                    .build()
+            }
+        }
+        val item = MediaItem.Builder().setUri(msg.getString("url"))
+            .setMimeType(msg.optString("mimeType").takeIf { it.isNotBlank() } ?: "application/x-mpegURL")
+            .setSubtitleConfigurations(subtitles).build()
+        val source = DefaultMediaSourceFactory(http).createMediaSource(item)
         player.setMediaSource(source, msg.optLong("startPos"))
         player.prepare()
         player.playWhenReady = true

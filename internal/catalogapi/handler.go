@@ -1,7 +1,6 @@
-// Package catalogapi serves the NetMirror catalog to the phone as
-// plain JSON over HTTP (/api/catalog/*). It's a thin layer over
-// internal/netmirror, plus the watch history the phone needs alongside
-// it (resume points, continue-watching) and NetMirror's OTP login.
+// Package catalogapi serves provider-neutral catalogue JSON over HTTP,
+// enriched with resume points and watch history. NetMirror's OTP login is
+// retained for the existing movie and TV catalogues.
 package catalogapi
 
 import (
@@ -12,16 +11,17 @@ import (
 	"net/http"
 	"strconv"
 
+	"projectorremote/internal/catalog"
 	"projectorremote/internal/history"
 	"projectorremote/internal/netmirror"
 )
 
-// Catalog is the subset of *netmirror.Client this package uses.
+// Catalog is the normalized catalogue and login interface.
 type Catalog interface {
-	Home(ctx context.Context, ott string) (*netmirror.Home, error)
-	Search(ctx context.Context, ott, q string) ([]netmirror.SearchItem, error)
-	Title(ctx context.Context, ott, id string) (*netmirror.Title, error)
-	Season(ctx context.Context, ott, seasonID string, page int) (*netmirror.EpisodePage, error)
+	Home(ctx context.Context, ott string) (*catalog.Home, error)
+	Search(ctx context.Context, ott, q string) ([]catalog.SearchItem, error)
+	Title(ctx context.Context, ott, id string) (*catalog.Title, error)
+	Season(ctx context.Context, ott, seasonID string, page int) (*catalog.EpisodePage, error)
 	LoginImage(ctx context.Context) (string, error)
 	Login(ctx context.Context, otp string) (string, error)
 }
@@ -33,6 +33,8 @@ type Tokens interface {
 
 // History is the subset of *history.Store this package uses.
 type History interface {
+	Bookmarks() []history.Bookmark
+	SetBookmark(history.Bookmark, bool) error
 	Continue() []history.ContinueItem
 	Resume(ott, titleID string) *history.Resume
 	Position(ott, id string) (history.Position, bool)
@@ -47,6 +49,9 @@ type handler struct {
 func New(cat Catalog, hist History, tokens Tokens) http.Handler {
 	h := &handler{cat: cat, hist: hist, tokens: tokens}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/catalog/bookmarks", h.bookmarks)
+	mux.HandleFunc("PUT /api/catalog/bookmarks", h.setBookmark)
+	mux.HandleFunc("DELETE /api/catalog/bookmarks", h.setBookmark)
 	mux.HandleFunc("GET /api/catalog/home", h.home)
 	mux.HandleFunc("GET /api/catalog/search", h.search)
 	mux.HandleFunc("GET /api/catalog/title", h.title)
@@ -71,20 +76,24 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 // unknown title, 502 for anything else (NetMirror down, slow, or
 // answering something unparseable).
 func upstreamError(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, netmirror.ErrNotFound) {
+	if errors.Is(err, catalog.ErrInvalidArgument) {
+		writeError(w, http.StatusBadRequest, "invalid catalogue request")
+		return
+	}
+	if errors.Is(err, catalog.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "title not found")
 		return
 	}
 	log.Printf("catalogapi: %s: %v", r.URL.Path, err)
-	writeError(w, http.StatusBadGateway, "NetMirror is not responding")
+	writeError(w, http.StatusBadGateway, "The catalogue is not responding. Try again.")
 }
 
 // ott reads and validates the ott query parameter, writing a 400 and
 // returning false if it's missing or unknown.
 func ott(w http.ResponseWriter, r *http.Request) (string, bool) {
 	o := r.URL.Query().Get("ott")
-	if !netmirror.ValidOTT(o) {
-		writeError(w, http.StatusBadRequest, "ott must be nf, pv, or hs")
+	if !catalog.ValidOTT(o) {
+		writeError(w, http.StatusBadRequest, "ott must be nf, pv, hs, or anime")
 		return "", false
 	}
 	return o, true
@@ -130,7 +139,7 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) {
 }
 
 type titleResponse struct {
-	*netmirror.Title
+	*catalog.Title
 	Resume *history.Resume `json:"resume"`
 	// Progress holds saved positions for the movie, or for the started
 	// episodes in Episodes, keyed by ID.
@@ -138,7 +147,7 @@ type titleResponse struct {
 }
 
 type seasonResponse struct {
-	*netmirror.EpisodePage
+	*catalog.EpisodePage
 	Progress map[string]history.Position `json:"progress"`
 }
 
@@ -152,7 +161,7 @@ func (h *handler) progress(ott string, ids ...string) map[string]history.Positio
 	return m
 }
 
-func episodeIDs(page *netmirror.EpisodePage) []string {
+func episodeIDs(page *catalog.EpisodePage) []string {
 	if page == nil {
 		return nil
 	}
@@ -184,6 +193,9 @@ func (h *handler) title(w http.ResponseWriter, r *http.Request) {
 	// or Season 1.
 	if t.Type == "series" && len(t.Seasons) > 0 {
 		target := t.Seasons[0].ID
+		if o == "anime" && t.SeasonID != "" {
+			target = t.SeasonID
+		}
 		if resume != nil && resume.SeasonID != "" {
 			target = resume.SeasonID
 		}
@@ -267,4 +279,43 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) bookmarks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"items": h.hist.Bookmarks()})
+}
+func (h *handler) setBookmark(w http.ResponseWriter, r *http.Request) {
+	o, ok := ott(w, r)
+	if !ok {
+		return
+	}
+	id, ok := required(w, r, "id")
+	if !ok {
+		return
+	}
+	if len(id) > 512 {
+		writeError(w, 400, "title ID is too long")
+		return
+	}
+	b := history.Bookmark{OTT: o, TitleID: id}
+	saved := r.Method == http.MethodPut
+	if saved {
+		var body struct {
+			Title  string `json:"title"`
+			Poster string `json:"poster"`
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 16384)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Title == "" || len(body.Title) > 1024 || len(body.Poster) > 8192 {
+			writeError(w, 400, "a title and valid poster are required")
+			return
+		}
+		b.Title, b.Poster = body.Title, body.Poster
+	}
+	if err := h.hist.SetBookmark(b, saved); err != nil {
+		log.Printf("catalogapi: bookmark: %v", err)
+		writeError(w, 500, "Couldn't save bookmarks on the projector. Try again.")
+		return
+	}
+	h.bookmarks(w, r)
 }

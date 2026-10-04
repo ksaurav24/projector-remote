@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useWs } from "../ws/WsContext";
 
 const REPEAT_MS = 150;
@@ -15,6 +15,7 @@ export function useKeyRepeat(code: string) {
   }
 
   function start() {
+    stop();
     press();
     timer.current = window.setInterval(press, REPEAT_MS);
   }
@@ -26,7 +27,12 @@ export function useKeyRepeat(code: string) {
     }
   }
 
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearInterval(timer.current);
+  }, []);
+
   return {
+    onClick: (event: React.MouseEvent<HTMLButtonElement>) => { if (event.detail === 0) press(); },
     onPointerDown: start,
     onPointerUp: stop,
     onPointerCancel: stop,

@@ -171,3 +171,60 @@ func TestSave_FileIsReadableFromShell(t *testing.T) {
 		t.Fatalf("mode = %v, want 0644", info.Mode().Perm())
 	}
 }
+
+func TestBookmarksPersistIndependentlyOfWatching(t *testing.T) {
+	s, path := newTestStore(t)
+	s.SavePosition("anime", "1:sub:1", 100, 1000)
+	for _, ott := range []string{"nf", "pv", "hs", "anime"} {
+		b := Bookmark{OTT: ott, TitleID: "1", Title: "Saved title", Poster: "poster.jpg"}
+		if err := s.SetBookmark(b, true); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetBookmark(b, true); err != nil {
+			t.Fatal(err)
+		}
+		s.Forget(ott, "1")
+	}
+	if len(s.Bookmarks()) != 4 {
+		t.Fatal("duplicates or platform collision")
+	}
+	reopened, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reopened.Bookmarks()) != 4 {
+		t.Fatal("bookmarks lost after restart")
+	}
+	if p, ok := reopened.Position("anime", "1:sub:1"); !ok || p.Pos != 100 {
+		t.Fatal("bookmark write lost progress")
+	}
+	copy := reopened.Bookmarks()
+	copy[0].Title = "changed"
+	if reopened.Bookmarks()[0].Title == "changed" {
+		t.Fatal("exposed internal slice")
+	}
+	for i := 0; i < 2; i++ {
+		if err := reopened.SetBookmark(Bookmark{OTT: "anime", TitleID: "1"}, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	again, err := Open(path)
+	if err != nil || len(again.Bookmarks()) != 3 {
+		t.Fatal("remove did not persist", err)
+	}
+}
+func TestBookmarkWriteFailureRollsBack(t *testing.T) {
+	s, path := newTestStore(t)
+	b := Bookmark{OTT: "anime", TitleID: "1", Title: "Title"}
+	if err := s.SetBookmark(b, true); err != nil {
+		t.Fatal(err)
+	}
+	s.path = filepath.Join(t.TempDir(), "missing", "state.json")
+	if err := s.SetBookmark(b, false); err == nil {
+		t.Fatal("swallowed disk failure")
+	}
+	if len(s.Bookmarks()) != 1 {
+		t.Fatal("failed write changed in-memory bookmarks")
+	}
+	s.path = path
+}

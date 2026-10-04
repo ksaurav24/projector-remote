@@ -11,34 +11,38 @@ export function RemoteControls() {
 
   return (
     <div>
-      <div className="relative flex rounded-full bg-neutral-100 dark:bg-neutral-800 p-1 mb-4">
+      <div role="group" aria-label="Remote control mode" className="relative mb-4 flex rounded-full bg-neutral-100 p-1 dark:bg-neutral-800">
         <motion.div
           className="absolute inset-y-1 w-[calc(50%-4px)] rounded-full bg-white dark:bg-neutral-700 shadow-sm"
           animate={{ x: mode === "dpad" ? 0 : "100%" }}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
         />
         <button
+          type="button"
+          aria-pressed={mode === "dpad"}
           onClick={() => setMode("dpad")}
           className={
-            "relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors " +
+            "relative z-10 flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors " +
             (mode === "dpad"
               ? "text-orange-600 dark:text-orange-400"
               : "text-neutral-500 dark:text-neutral-400")
           }
         >
-          <GameController weight="bold" className="size-4" />
+          <GameController aria-hidden="true" weight="bold" className="size-4" />
           D-pad
         </button>
         <button
+          type="button"
+          aria-pressed={mode === "mouse"}
           onClick={() => setMode("mouse")}
           className={
-            "relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors " +
+            "relative z-10 flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors " +
             (mode === "mouse"
               ? "text-orange-600 dark:text-orange-400"
               : "text-neutral-500 dark:text-neutral-400")
           }
         >
-          <CursorClick weight="bold" className="size-4" />
+          <CursorClick aria-hidden="true" weight="bold" className="size-4" />
           Mouse
         </button>
       </div>

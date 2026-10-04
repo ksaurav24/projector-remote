@@ -25,7 +25,7 @@ export function OttSwitcher({
             aria-selected={active}
             onClick={() => onChange(o.id)}
             className={
-              "relative px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
+              "relative px-2.5 min-[390px]:px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
               (active ? "text-white" : "text-haze active:text-bulb")
             }
           >

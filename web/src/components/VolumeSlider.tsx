@@ -73,6 +73,17 @@ export function VolumeSlider() {
       <div
         ref={trackRef}
         role="slider"
+        tabIndex={0}
+        aria-orientation="vertical"
+        aria-valuetext={`${displayLevel}%`}
+        onKeyDown={(event) => {
+          const delta = event.key === "ArrowUp" || event.key === "ArrowRight" ? 5 : event.key === "ArrowDown" || event.key === "ArrowLeft" ? -5 : 0;
+          if (!delta && event.key !== "Home" && event.key !== "End") return;
+          event.preventDefault();
+          const next = event.key === "Home" ? 0 : event.key === "End" ? 100 : clamp(displayLevel + delta, 0, 100);
+          setDisplayLevel(next);
+          send({ type: "set_volume", level: next });
+        }}
         aria-label="Volume"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -82,7 +93,7 @@ export function VolumeSlider() {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         style={{ height: TRACK_HEIGHT }}
-        className="relative w-10 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 touch-none select-none overflow-hidden"
+        className="relative w-12 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 touch-none select-none overflow-hidden"
       >
         <div
           className="absolute bottom-0 left-0 right-0 bg-orange-500 rounded-full transition-[height] duration-75"
@@ -93,7 +104,8 @@ export function VolumeSlider() {
           style={{ bottom: `calc(${displayLevel}% - 14px)` }}
         />
       </div>
-      <Icon weight="bold" className="size-5 text-neutral-500 dark:text-neutral-400" />
+      <span className="text-xs tabular-nums text-neutral-500 dark:text-neutral-400">{displayLevel}%</span>
+      <Icon aria-hidden="true" weight="bold" className="size-5 text-neutral-500 dark:text-neutral-400" />
     </div>
   );
 }

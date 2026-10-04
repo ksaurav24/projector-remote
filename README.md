@@ -9,6 +9,17 @@ The PWA also browses the NetMirror catalog (Netflix, Prime and
 Hotstar skins) and plays titles on the projector in its own player
 app, with audio, subtitle, and quality switching, resume, continue
 watching, and next-episode auto-play, all controlled from the phone.
+Anime browsing uses AniList metadata and ordered stream-provider adapters,
+with sub/dub editions and automatic source fallback. See
+[`docs/anime-module.md`](docs/anime-module.md) for provider configuration,
+API details, and the required player update.
+
+Bookmark any title from its detail page, then open **Browse → Bookmarks**
+to find saved movies, shows, and anime across platforms. Bookmarks are stored
+on the projector with watch history and shared across remotes. Other devices
+refresh them when focused or every 30 seconds while visible. Finishing a
+title does not remove its bookmark.
+
 Its responsive Picture setup screen controls zoom, focus, manual
 keystone, four-corner mapping, projection orientation, and the
 projector's automatic correction features from a phone or laptop.
@@ -20,13 +31,13 @@ Phone/laptop browser (PWA)
 Go server — runs ON the projector (cmd/server)
  ├─ HTTP: serves the embedded React build (go:embed web/dist)
  ├─ WS "/ws": JSON message protocol (internal/wsserver)
- ├─ HTTP "/api/catalog/*": NetMirror catalog (internal/catalogapi)
+ ├─ HTTP "/api/catalog/*": normalized NetMirror + anime catalog (internal/catalogapi)
  ├─ internal/deviceio: local command execution
  └─ internal/playback: playback session, next episode, resume
         │                        │  WS "/player" (localhost only)
         ▼                        ▼
    Kernel input subsystem     Player app (player/, Media3 ExoPlayer)
-   + `input text` / `am`        plays NetMirror's HLS streams
+   + `input text` / `am`        plays HLS / MP4 + subtitles
 ```
 
 `docs/netmirror-api.md` covers the NetMirror API,

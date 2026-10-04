@@ -25,19 +25,22 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   // Tracked outside state so pushState runs exactly once per open
   // (a state updater can be invoked twice under StrictMode).
   const depth = useRef(0);
+ const top = useRef<Overlay | undefined>(undefined);
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
       const d = typeof e.state?.overlayDepth === "number" ? e.state.overlayDepth : 0;
       depth.current = d;
-      setStack((s) => s.slice(0, d));
+      setStack((s) => { const next = s.slice(0, d); top.current = next.at(-1); return next; });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   const open = useCallback((o: Overlay) => {
-    depth.current += 1;
+    if (o.kind === "nowplaying" && top.current?.kind === "nowplaying") return;
+ top.current = o;
+ depth.current += 1;
     window.history.pushState({ overlayDepth: depth.current }, "");
     setStack((s) => [...s, o]);
   }, []);

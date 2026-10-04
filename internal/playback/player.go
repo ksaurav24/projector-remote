@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"projectorremote/internal/catalog"
 	"projectorremote/internal/history"
 )
 
@@ -128,7 +129,11 @@ func (m *Manager) handlePlayer(conn playerConn, raw []byte) {
 			break
 		}
 		now := m.d.Clock.Now()
-		if s.retries >= maxRetries || (!s.lastRetry.IsZero() && now.Sub(s.lastRetry) <= retryWindow) {
+		retryLimit := maxRetries
+		if s.np.OTT == "anime" {
+			retryLimit = 5
+		}
+		if s.retries >= retryLimit || (s.np.OTT != "anime" && !s.lastRetry.IsZero() && now.Sub(s.lastRetry) <= retryWindow) {
 			m.failLocked("The stream stopped working. Try playing it again.")
 			break
 		}
@@ -139,6 +144,7 @@ func (m *Manager) handlePlayer(conn playerConn, raw []byte) {
 		s.lastRetry = now
 		s.retries++
 		s.np.Status = "loading"
+		s.delivered = false
 		m.publishLocked()
 		gen, ott, id := s.gen, s.np.OTT, s.np.ContentID
 		m.mu.Unlock()
@@ -199,7 +205,22 @@ func (m *Manager) endedLocked(s *session) {
 }
 
 func (m *Manager) reResolve(gen int, ott, id string, pos int64) {
-	stream, err := m.d.Catalog.Resolve(context.Background(), ott, id)
+	m.mu.Lock()
+	if m.sess == nil || m.sess.gen != gen {
+		m.mu.Unlock()
+		return
+	}
+	failed := m.sess.stream
+	m.mu.Unlock()
+	var stream *catalog.Stream
+	var err error
+	if recovery, ok := m.d.Catalog.(interface {
+		Recover(context.Context, string, string, *catalog.Stream) (*catalog.Stream, error)
+	}); ok {
+		stream, err = recovery.Recover(context.Background(), ott, id, failed)
+	} else {
+		stream, err = m.d.Catalog.Resolve(context.Background(), ott, id)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	s := m.sess

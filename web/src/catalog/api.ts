@@ -20,7 +20,8 @@ export async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> 
   if (!res.ok) {
     throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`);
   }
-  cache.set(url, body);
+  // Do not keep an empty search result for the entire PWA session.
+ if (!(url.startsWith("/api/catalog/search?") && body?.items?.length === 0)) cache.set(url, body);
   return body as T;
 }
 

@@ -1,9 +1,10 @@
-export type Ott = "nf" | "pv" | "hs";
+export type Ott = "nf" | "pv" | "hs" | "anime";
 
 export const OTTS: { id: Ott; label: string; tint: string }[] = [
   { id: "nf", label: "Netflix", tint: "#E50914" },
   { id: "pv", label: "Prime", tint: "#1A98FF" },
   { id: "hs", label: "Hotstar", tint: "#1F80E0" },
+  { id: "anime", label: "Anime", tint: "#7856C8" },
 ];
 
 export function ottLabel(ott: Ott): string {
@@ -11,11 +12,13 @@ export function ottLabel(ott: Ott): string {
 }
 
 export interface Poster {
+  title?: string;
   id: string;
   poster: string;
 }
 
 export interface Slide {
+  title?: string;
   id: string;
   img: string;
   logo: string;
@@ -39,6 +42,7 @@ export interface SearchItem extends Poster {
 }
 
 export interface Season {
+  editions?: { id: string; code: string; label: string }[];
   id: string;
   number: number;
   label: string;
@@ -109,6 +113,6 @@ export interface ContinueItem {
  * Hotstar serves tall art everywhere, even for search and "more like
  * this". */
 export function posterAspect(ott: Ott, layout: "h" | "v"): string {
-  if (ott === "hs") return "3 / 4";
+  if (ott === "hs" || ott === "anime") return "3 / 4";
   return layout === "v" ? "5 / 7" : "16 / 9";
 }

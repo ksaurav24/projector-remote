@@ -1,5 +1,5 @@
 // Package playback runs the one playback session the projector can
-// have: it resolves what to play through NetMirror, drives the player
+// have: it resolves what to play through the catalogue, drives the player
 // app over its /player WebSocket, and keeps watch history, the
 // next-episode countdown, and every phone's now-playing view in step.
 //
@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"projectorremote/internal/catalog"
 	"projectorremote/internal/history"
 	"projectorremote/internal/netmirror"
 )
@@ -79,11 +80,12 @@ type nextTarget struct {
 }
 
 type session struct {
+	cancel   context.CancelFunc
 	gen      int
 	np       NowPlaying
 	seasonID string
 	next     *nextTarget
-	stream   *netmirror.Stream
+	stream   *catalog.Stream
 	startPos int64
 
 	// delivered is set once the connected player has this session's
@@ -151,20 +153,22 @@ func userMessage(err error) string {
 	switch {
 	case errors.Is(err, netmirror.ErrNoToken):
 		return "NetMirror needs you to log in again"
-	case errors.Is(err, netmirror.ErrNotFound):
-		return "This title isn't available on NetMirror"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "The source providers took too long to respond. Try again."
+	case errors.Is(err, catalog.ErrNotFound):
+		return "This title is not available"
 	}
-	return "NetMirror is not responding. Try again in a moment."
+	return "No playable source is available. Try again in a moment."
 }
 
 type prepared struct {
-	title     *netmirror.Title
+	title     *catalog.Title
 	contentID string
 	seasonID  string
 	epLabel   string
 	epTitle   string
 	next      *nextTarget
-	stream    *netmirror.Stream
+	stream    *catalog.Stream
 }
 
 // prepare does Play's network work, without the lock held: the title,
@@ -187,17 +191,17 @@ func (m *Manager) prepare(ctx context.Context, ott, titleID, seasonID, episodeID
 			return nil, err
 		}
 		ep := c.current()
-		p.contentID, p.seasonID, p.epLabel, p.epTitle = ep.ID, c.season().ID, c.label(), ep.Title
+		p.contentID, p.seasonID, p.epLabel, p.epTitle = ep.ID, c.season().ID, episodeLabel(ott, c.season(), ep), ep.Title
 		season, nextEp, ok, err := c.next(ctx, m.d.Catalog, ott)
 		if err != nil {
 			// Not fatal: this episode still plays, just without a Next.
 			log.Printf("playback: next episode after %s: %v", ep.ID, err)
 		} else if ok {
-			p.next = &nextTarget{seasonID: season.ID, episodeID: nextEp.ID, label: epLabel(season.Number, nextEp.Num)}
+			p.next = &nextTarget{seasonID: season.ID, episodeID: nextEp.ID, label: episodeLabel(ott, season, nextEp)}
 		}
 	}
 	if p.stream, err = m.d.Catalog.Resolve(ctx, ott, p.contentID); err != nil {
-		return nil, err
+		return p, err
 	}
 	return p, nil
 }
@@ -207,11 +211,11 @@ func (m *Manager) prepare(ctx context.Context, ott, titleID, seasonID, episodeID
 // or starts at S1 E1. A newer Play (or Stop) supersedes one still
 // resolving.
 func (m *Manager) Play(ctx context.Context, ott, titleID, seasonID, episodeID string) error {
-	if !netmirror.ValidOTT(ott) || titleID == "" {
+	if !catalog.ValidOTT(ott) || titleID == "" {
 		return fmt.Errorf("playback: bad play request %q %q", ott, titleID)
 	}
 	m.mu.Lock()
-	np := NowPlaying{OTT: ott, TitleID: titleID, Status: "loading", Tracks: emptyTracks()}
+	np := NowPlaying{OTT: ott, TitleID: titleID, ContentID: episodeID, SeasonID: seasonID, Status: "loading", Tracks: emptyTracks()}
 	if prev := m.sess; prev != nil && prev.np.OTT == ott && prev.np.TitleID == titleID {
 		// Same show (Next, autoplay): keep its name and art up while
 		// the new episode resolves.
@@ -220,7 +224,8 @@ func (m *Manager) Play(ctx context.Context, ott, titleID, seasonID, episodeID st
 	m.endLocked()
 	m.gen++
 	gen := m.gen
-	m.sess = &session{gen: gen, np: np}
+	ctx, cancel := context.WithCancel(ctx)
+	m.sess = &session{gen: gen, np: np, cancel: cancel}
 	m.publishLocked()
 	m.mu.Unlock()
 
@@ -231,6 +236,10 @@ func (m *Manager) Play(ctx context.Context, ott, titleID, seasonID, episodeID st
 	s := m.sess
 	if s == nil || s.gen != gen {
 		return nil
+	}
+	if p != nil {
+		s.np.Title, s.np.Poster = p.title.Title, p.title.Poster
+		s.np.ContentID, s.np.SeasonID, s.np.EpLabel, s.np.EpTitle = p.contentID, p.seasonID, p.epLabel, p.epTitle
 	}
 	if err != nil {
 		m.failErrLocked(err)
@@ -272,6 +281,9 @@ func (m *Manager) sendLoadLocked() {
 		"contentId": s.np.ContentID,
 		"url":       s.stream.URL,
 		"referer":   s.stream.Referer,
+		"headers":   s.stream.Headers,
+		"mimeType":  s.stream.MimeType,
+		"subtitles": s.stream.Subtitles,
 		"title":     s.np.Title,
 		"subtitle":  subtitle,
 		"startPos":  s.startPos,
@@ -324,6 +336,9 @@ func (m *Manager) endLocked() {
 		return
 	}
 	m.stopTimersLocked(s)
+	if s.cancel != nil {
+		s.cancel()
+	}
 	if s.stream != nil && s.np.Dur > 0 && s.np.Status != "ended" {
 		m.d.History.SavePosition(s.np.OTT, s.np.ContentID, s.np.Pos, s.np.Dur)
 		if float64(s.np.Pos) >= history.FinishedRatio*float64(s.np.Dur) {

@@ -24,13 +24,15 @@ type Hub struct {
 	pb       Playback
 	upgrader websocket.Upgrader
 
-	mu               sync.Mutex
-	clients          map[*wsClient]struct{}
-	settingsRevision atomic.Int64
-	settingsMu       sync.RWMutex
-	settingsCache    *deviceio.ProjectorSettings
-	settingsErr      error
-	settingsReady    chan struct{}
+	mu                 sync.Mutex
+	clients            map[*wsClient]struct{}
+	settingsRevision   atomic.Int64
+	settingsMu         sync.RWMutex
+	settingsCache      *deviceio.ProjectorSettings
+	settingsErr        error
+	settingsReady      chan struct{}
+	settingsReadyOnce  sync.Once
+	settingsRetryDelay time.Duration
 }
 
 type wsClient struct {
@@ -40,11 +42,16 @@ type wsClient struct {
 }
 
 func NewHub(ctrl DeviceController, pb Playback) *Hub {
+	return newHub(ctrl, pb, 2*time.Second)
+}
+
+func newHub(ctrl DeviceController, pb Playback, settingsRetryDelay time.Duration) *Hub {
 	h := &Hub{
-		ctrl:          ctrl,
-		pb:            pb,
-		clients:       make(map[*wsClient]struct{}),
-		settingsReady: make(chan struct{}),
+		ctrl:               ctrl,
+		pb:                 pb,
+		clients:            make(map[*wsClient]struct{}),
+		settingsReady:      make(chan struct{}),
+		settingsRetryDelay: settingsRetryDelay,
 		upgrader: websocket.Upgrader{
 			// LAN-only, no auth by design (see design doc) — any origin
 			// on the private network is allowed to connect.
@@ -123,27 +130,39 @@ func (h *Hub) sendInitialSettings(c *wsClient) {
 }
 
 func (h *Hub) warmSettingsCache() {
-	started := time.Now()
+	attempt := 0
+	hadFailure := false
 	for {
+		attempt++
+		started := time.Now()
 		revision := h.settingsRevision.Load()
 		settings, err := h.ctrl.ProjectorSettings()
 		if err != nil {
+			hadFailure = true
 			h.settingsMu.Lock()
 			h.settingsErr = err
 			h.settingsMu.Unlock()
-			break
+			h.settingsReadyOnce.Do(func() { close(h.settingsReady) })
+			log.Printf("wsserver: projector settings cache attempt=%d failed_in=%s error=%v; retrying_in=%s", attempt, time.Since(started).Round(time.Millisecond), err, h.settingsRetryDelay)
+			time.Sleep(h.settingsRetryDelay)
+			continue
 		}
 		if revision != h.settingsRevision.Load() {
+			log.Printf("wsserver: projector settings cache attempt=%d superseded; retrying", attempt)
 			continue
 		}
 		h.settingsMu.Lock()
 		copy := cloneSettings(settings)
 		h.settingsCache = &copy
+		h.settingsErr = nil
 		h.settingsMu.Unlock()
-		break
+		h.settingsReadyOnce.Do(func() { close(h.settingsReady) })
+		log.Printf("wsserver: projector settings cache ready attempt=%d elapsed=%s", attempt, time.Since(started).Round(time.Millisecond))
+		if hadFailure {
+			h.broadcastCachedSettings(revision, settings)
+		}
+		return
 	}
-	close(h.settingsReady)
-	log.Printf("wsserver: projector settings cache ready in %s", time.Since(started).Round(time.Millisecond))
 }
 
 func cloneSettings(settings deviceio.ProjectorSettings) deviceio.ProjectorSettings {
@@ -277,9 +296,8 @@ func (h *Hub) applySettingsPatch(msg incoming) int64 {
 	return revision
 }
 
-func (h *Hub) broadcastSettingsSnapshot(revision int64) {
-	settings, err := h.ctrl.ProjectorSettings()
-	if err != nil || revision != h.settingsRevision.Load() {
+func (h *Hub) broadcastCachedSettings(revision int64, settings deviceio.ProjectorSettings) {
+	if revision != h.settingsRevision.Load() {
 		return
 	}
 	b, _ := json.Marshal(map[string]any{"type": "projector_settings", "settings": settings, "revision": revision})

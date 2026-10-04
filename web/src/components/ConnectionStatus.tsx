@@ -1,31 +1,16 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { WifiHigh, WifiSlash } from "@phosphor-icons/react";
 
 export function ConnectionStatus({ connected }: { connected: boolean }) {
   return (
-    <div className="flex items-center gap-1.5 text-xs font-medium">
+    <div role="status" aria-live="polite" aria-atomic="true" className="flex items-center gap-1.5 text-xs font-medium">
       {connected ? (
-        <WifiHigh weight="bold" className="size-4 text-orange-500" />
+        <WifiHigh aria-hidden="true" weight="bold" className="size-4 text-emerald-600 dark:text-emerald-400" />
       ) : (
-        <motion.span
-          animate={{ opacity: [1, 0.4, 1] }}
-          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <WifiSlash weight="bold" className="size-4 text-red-500" />
-        </motion.span>
+        <WifiSlash aria-hidden="true" weight="bold" className="size-4 text-red-600 dark:text-red-400" />
       )}
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={connected ? "on" : "off"}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 4 }}
-          transition={{ duration: 0.2 }}
-          className={connected ? "text-neutral-500 dark:text-neutral-400" : "text-red-500"}
-        >
-          {connected ? "Connected" : "Reconnecting"}
-        </motion.span>
-      </AnimatePresence>
+      <span className={connected ? "text-neutral-600 dark:text-neutral-300" : "text-red-700 dark:text-red-300"}>
+        {connected ? "Connected" : "Reconnecting"}
+      </span>
     </div>
   );
 }

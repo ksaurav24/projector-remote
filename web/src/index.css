@@ -76,3 +76,93 @@ body {
     animation: none;
   }
 }
+
+/* Keyboard focus stays visible against both the remote and catalogue. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-spot);
+  outline-offset: 3px;
+}
+button:not(:disabled) { cursor: pointer; }
+.carousel-control {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--color-bulb);
+  background: rgb(255 255 255 / .08);
+  border: 1px solid rgb(255 255 255 / .12);
+}
+.carousel-control:hover { background: rgb(255 255 255 / .16); }
+.carousel-control:disabled { opacity: .3; cursor: default; }
+
+@media (min-width: 1024px) {
+  .app-page { left: 208px; }
+  .app-nav {
+    inset: 0 auto 0 0;
+    width: 208px;
+    padding: 0;
+    justify-content: stretch;
+  }
+  .app-nav-inner {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 0;
+    padding: 32px 16px 28px;
+    box-shadow: none;
+  }
+  .nav-brand { padding: 0 12px 32px; }
+  .nav-item { padding: 14px 16px; gap: 12px; }
+  .remote-layout {
+    display: grid;
+    max-width: 1120px;
+    grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr;
+    gap: 28px 36px;
+    padding: 32px 36px 120px;
+    align-items: start;
+  }
+  .remote-intro { grid-column: 1 / -1; }
+  .remote-controller {
+    grid-column: 1;
+    grid-row: 2 / 5;
+    padding: 24px;
+    border: 1px solid light-dark(#e5e5e5, #303030);
+    border-radius: 28px;
+    background: light-dark(#fff, #171717);
+  }
+  .remote-favorites { grid-column: 2; grid-row: 2; }
+  .remote-text { grid-column: 2; grid-row: 3; }
+  .remote-apps { grid-column: 2; grid-row: 4; padding-top: 4px; }
+  .remote-apps h2 { font-size: 18px; text-transform: none; letter-spacing: normal; margin-bottom: 18px; color: inherit; }
+  .remote-apps > div > div:last-child { max-height: 260px; }
+  .playback-mini { left: 232px; right: 24px; bottom: 20px; max-width: 640px; }
+  .browse-header { padding: 20px 32px; gap: 16px; }
+  .browse-content { max-width: 1440px; margin-inline: auto; padding: 12px 16px 128px; }
+  .hero-art { aspect-ratio: 21 / 9; max-height: 440px; }
+  .hero-description { max-width: 72ch; font-size: 16px; margin-top: 20px; }
+  .hero-actions { max-width: 380px; }
+  .catalog-rail { margin-top: 36px; }
+  .catalog-rail > div:last-child { padding-bottom: 12px; }
+  .detail-panel, .search-panel {
+    inset: 24px max(32px, calc((100vw - 1180px) / 2)) 24px max(32px, calc((100vw - 1180px) / 2));
+    border-radius: 28px;
+    border: 1px solid rgb(255 255 255 / .15);
+    box-shadow: 0 0 0 100vmax rgb(0 0 0 / .75), 0 32px 100px rgb(0 0 0 / .6);
+  }
+  .detail-panel { max-width: 1000px; margin-inline: auto; }
+  .detail-panel.playback-panel { max-width: 600px; }
+  .title-backdrop { max-height: 400px; }
+  .title-content { padding: 0 48px 64px; }
+  .title-content > button { max-width: 640px; }
+  .title-content > p { max-width: 72ch; }
+  .title-content ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .search-panel > header, .search-panel > div { padding-left: 32px; padding-right: 32px; }
+  .track-picker { max-width: 520px; margin-inline: auto; bottom: 32px; border-radius: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

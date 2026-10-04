@@ -12,26 +12,28 @@ import (
 )
 
 type mockCtrl struct {
-	mu            sync.Mutex
-	keyEvents     []string
-	texts         []string
-	launches      []string
-	moves         [][2]int
-	buttons       []bool
-	refreshed     bool
-	connected     bool
-	volume        int
-	volumeErr     error
-	setVolumeLog  []int
-	settings      deviceio.ProjectorSettings
-	settingsDelay time.Duration
-	zoomLog       []int
-	keystoneLog   []string
-	cornerLog     []string
-	modeLog       []string
-	featureLog    []string
-	focusLog      []string
-	calls         chan string
+	mu               sync.Mutex
+	keyEvents        []string
+	texts            []string
+	launches         []string
+	moves            [][2]int
+	buttons          []bool
+	refreshed        bool
+	connected        bool
+	volume           int
+	volumeErr        error
+	setVolumeLog     []int
+	settings         deviceio.ProjectorSettings
+	settingsDelay    time.Duration
+	settingsFailures int
+	settingsErr      error
+	zoomLog          []int
+	keystoneLog      []string
+	cornerLog        []string
+	modeLog          []string
+	featureLog       []string
+	focusLog         []string
+	calls            chan string
 }
 
 func newMockCtrl() *mockCtrl {
@@ -117,12 +119,23 @@ func (m *mockCtrl) SetVolume(level int) error {
 }
 
 func (m *mockCtrl) ProjectorSettings() (deviceio.ProjectorSettings, error) {
-	if m.settingsDelay > 0 {
-		time.Sleep(m.settingsDelay)
-	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.settings, nil
+	delay := m.settingsDelay
+	if m.settingsFailures > 0 {
+		m.settingsFailures--
+		err := m.settingsErr
+		m.mu.Unlock()
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+		return deviceio.ProjectorSettings{}, err
+	}
+	settings := m.settings
+	m.mu.Unlock()
+	if delay > 0 {
+		time.Sleep(delay)
+	}
+	return settings, nil
 }
 
 func (m *mockCtrl) SetZoom(percent int) error {

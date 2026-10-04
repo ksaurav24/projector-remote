@@ -38,7 +38,10 @@ Supported automatic-feature keys are `autoFocus`, `trapezoidAuto`,
 
 Provider calls are relatively expensive Android process calls. The controller
 allows two concurrent calls, while projector mutations are serialized so two
-clients cannot corrupt geometry.
+clients cannot corrupt geometry. Each call has an eight-second deadline. A
+shorter three-second deadline proved unsafe under device load: Go terminated
+the `content` subprocess and reported the misleading-looking `signal: killed`
+error even though Android's low-memory killer was not involved.
 
 ## Four-corner geometry
 
@@ -154,6 +157,12 @@ caches the result, and updates the cache after each successful command. A PWA
 refresh therefore reuses the warmed snapshot instead of starting another scan.
 If a browser connects during the first cold scan immediately after server boot,
 it still waits for that one scan.
+
+If the initial inventory fails, the server logs the failed attempt and retries
+in the background every two seconds. Connected clients may briefly receive a
+`settings_error`, followed automatically by a full `projector_settings`
+snapshot when the provider recovers. A transient failure is never retained as
+the permanent cache state.
 
 Measured after deployment over the current tailnet path:
 

@@ -18,6 +18,7 @@ function UtilButton({ code, icon, danger = false }: { code: string; icon: ReactN
   return (
     <motion.button
       {...handlers}
+      aria-label={code.replace("KEYCODE_", "").replaceAll("_", " ").toLowerCase()}
       whileTap={{ scale: 0.9 }}
       className={
         "flex-1 rounded-2xl py-3.5 flex items-center justify-center border transition-colors " +
@@ -44,6 +45,7 @@ function DpadButton({
   return (
     <motion.button
       {...handlers}
+      aria-label={code.replace("KEYCODE_", "").replaceAll("_", " ").toLowerCase()}
       whileTap={{ scale: 0.9 }}
       className={
         "flex items-center justify-center " +

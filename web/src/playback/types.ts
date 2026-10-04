@@ -20,6 +20,7 @@ export interface NowPlaying {
   ott: Ott;
   titleId: string;
   contentId: string;
+ seasonId: string;
   title: string;
   epLabel: string;
   epTitle: string;

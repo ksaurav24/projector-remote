@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"projectorremote/internal/anime"
+	"projectorremote/internal/catalog"
 	"projectorremote/internal/catalogapi"
 	"projectorremote/internal/deviceio"
 	"projectorremote/internal/history"
@@ -61,6 +63,22 @@ func main() {
 	listenAddr := flag.String("listen", ":8080", "address to listen on")
 	statePath := flag.String("state", "/data/local/tmp/projector-remote-state.json", "watch history and track preferences file")
 	tokenPath := flag.String("token", "/data/local/tmp/projector-remote-token", "NetMirror login token file")
+	animeSearch := flag.String("anime-search", "https://kitsu.io/api/edge/anime", "partial-title search endpoint")
+	animeEpisodes := flag.String("anime-episodes", "https://api.ani.zip/mappings", "episode metadata endpoint")
+	animeList := flag.String("anime-metadata", "https://graphql.anilist.co", "AniList GraphQL endpoint")
+	animeNeko := flag.String("anime-anineko", "https://anineko.to", "AniNeko site URL")
+	animeKoto := flag.String("anime-anikoto", "https://anikototv.to", "AniKoto site URL")
+	animeRe := flag.String("anime-reanime", "", "self-hosted ReAnime API base URL; empty disables it")
+	animeZone := flag.String("anime-anizone", "https://anizone.to", "AniZone site URL")
+	animeGG := flag.String("anime-animegg", "https://www.animegg.org", "AnimeGG site URL")
+	animeBD := flag.String("anime-anibd", "https://epeng.animeapps.top", "AniBD API URL")
+	animeSenshi := flag.String("anime-senshi", "https://senshi.to", "Senshi site URL")
+	animeKAA := flag.String("anime-kaa", "https://kaa.lt", "Kickassanime API URL")
+	animeDunya := flag.String("anime-animedunya", "https://anime-dunya.com", "AnimeDunya site URL")
+	animeDBApp := flag.String("anime-anidbapp", "https://anidb.app", "AniDB.app site URL")
+	animeNoSub := flag.String("anime-animenosub", "https://animenosub.to", "AnimeNoSub site URL")
+	animeOnsen := flag.String("anime-animeonsen", "https://www.animeonsen.xyz", "AnimeOnsen site URL")
+	animeWaves := flag.String("anime-aniwaves", "https://aniwaves.ru", "AniWaves site URL")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -89,10 +107,19 @@ func main() {
 	}
 	tokens := netmirror.TokenFile{Path: *tokenPath, Fallback: netmirror.MMKVToken{Path: netmirror.DefaultMMKVPath}}
 	nm := netmirror.New(tokens)
+	animeService := anime.New(anime.Config{
+		SearchURL: *animeSearch, EpisodesURL: *animeEpisodes, AniListURL: *animeList, AniNekoURL: *animeNeko, AniKotoURL: *animeKoto,
+		ReAnimeURL: *animeRe, AniZoneURL: *animeZone, AnimeGGURL: *animeGG, AniBDURL: *animeBD,
+		SenshiURL: *animeSenshi, KAAURL: *animeKAA, AnimeDunyaURL: *animeDunya,
+		AniDBAppURL: *animeDBApp, AnimeNoSubURL: *animeNoSub,
+		AnimeOnsenURL: *animeOnsen,
+		AniWavesURL:   *animeWaves,
+	})
+	cat := &catalog.Router{Default: nm, Anime: animeService}
 
 	var hub *wsserver.Hub
 	pb := playback.New(playback.Deps{
-		Catalog: nm,
+		Catalog: cat,
 		History: hist,
 		Launch:  playback.LaunchPlayer,
 		// hub is set below, before the server accepts anything that
@@ -100,7 +127,12 @@ func main() {
 		OnChange: func(np *playback.NowPlaying) { hub.BroadcastNowPlaying(np) },
 	})
 	hub = wsserver.NewHub(ctrl, pb)
-	mux := newMux(distFS, hub, catalogapi.New(nm, hist, tokens), http.HandlerFunc(pb.ServePlayer))
+	mux := newMux(distFS, hub, catalogapi.New(cat, hist, tokens), http.HandlerFunc(pb.ServePlayer))
+	compat := anime.CompatHandler(animeService)
+	mux.Handle("/map/", compat)
+	mux.Handle("/episodes/", compat)
+	mux.Handle("/watch/", compat)
+	mux.Handle("/stream/", compat)
 	srv := &http.Server{Addr: *listenAddr, Handler: mux}
 
 	go func() {

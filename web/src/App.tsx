@@ -1,3 +1,4 @@
+import { BookmarkProvider } from "./bookmarks/BookmarkProvider";
 import { useState } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
 import { WsProvider } from "./ws/WsContext";
@@ -57,22 +58,25 @@ function Shell() {
   // switching tabs keeps each one's scroll position and loaded data.
   return (
     <>
-      <div hidden={tab !== "remote"} className="fixed inset-0 overflow-y-auto">
-        <RemotePage />
+      <div inert={stack.length > 0}>
+        <div hidden={tab !== "remote"} className="app-page fixed inset-0 overflow-y-auto">
+          <RemotePage />
+        </div>
+        <div hidden={tab !== "browse"} className="app-page fixed inset-0 overflow-y-auto bg-black">
+          <BrowsePage />
+        </div>
+        <div hidden={tab !== "settings"} className="app-page fixed inset-0 overflow-y-auto">
+          <SettingsPage />
+        </div>
+        <TabBar tab={tab} onChange={setTab} />
+
       </div>
-      <div hidden={tab !== "browse"} className="fixed inset-0 overflow-y-auto bg-black">
-        <BrowsePage />
-      </div>
-      <div hidden={tab !== "settings"} className="fixed inset-0 overflow-y-auto">
-        <SettingsPage />
-      </div>
-      <TabBar tab={tab} onChange={setTab} />
       <AnimatePresence>
-        {nowPlaying && <MiniBar key="mini" np={nowPlaying} onExpand={() => open({ kind: "nowplaying" })} />}
+        {nowPlaying && stack.at(-1)?.kind !== "nowplaying" && <MiniBar key="mini" np={nowPlaying} onExpand={() => open({ kind: "nowplaying" })} />}
       </AnimatePresence>
       <AnimatePresence>
         {stack.map((o, i) => (
-          <OverlayView key={`${i}:${o.kind}:${"id" in o ? o.id : ""}`} overlay={o} />
+          <div key={`${i}:${o.kind}:${"id" in o ? o.id : ""}`} inert={i !== stack.length - 1}><OverlayView overlay={o} /></div>
         ))}
       </AnimatePresence>
     </>
@@ -84,7 +88,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <WsProvider>
         <OverlayProvider>
-          <Shell />
+          <BookmarkProvider><Shell /></BookmarkProvider>
         </OverlayProvider>
       </WsProvider>
     </MotionConfig>

@@ -25,7 +25,7 @@ export function MiniBar({ np, onExpand }: { np: NowPlaying; onExpand: () => void
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 24, opacity: 0 }}
       transition={{ type: "spring", stiffness: 420, damping: 36 }}
-      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+84px)] z-30 mx-auto max-w-md"
+      data-playback-mini="true" className="playback-mini fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+84px)] z-50 mx-auto max-w-md"
     >
       <div className="relative overflow-hidden rounded-[22px] bg-neutral-900/80 text-bulb shadow-[0_16px_40px_-10px_rgba(0,0,0,0.6)] ring-1 ring-white/10 backdrop-blur-xl">
         <button onClick={onExpand} className="flex w-full items-center gap-3 p-2.5 pr-28 text-left">

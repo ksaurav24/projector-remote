@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"projectorremote/internal/catalog"
 	"projectorremote/internal/history"
 	"projectorremote/internal/netmirror"
 )
@@ -140,6 +141,15 @@ func TestUpstreamFailureIs502(t *testing.T) {
 	var body errBody
 	code := do(t, New(&fakeCatalog{err: errors.New("boom")}, &fakeHistory{}, &fakeTokens{}), "GET", "/api/catalog/home?ott=nf", &body)
 	if code != 502 || body.Error == "" {
+		t.Fatalf("code %d body %+v", code, body)
+	}
+}
+
+func TestInvalidCatalogArgumentIs400(t *testing.T) {
+	var body errBody
+	cat := &fakeCatalog{err: catalog.ErrInvalidArgument}
+	code := do(t, New(cat, &fakeHistory{}, &fakeTokens{}), "GET", "/api/catalog/home?ott=anime", &body)
+	if code != http.StatusBadRequest || body.Error == "" {
 		t.Fatalf("code %d body %+v", code, body)
 	}
 }
@@ -302,5 +312,65 @@ func TestLogin_WrongOTP(t *testing.T) {
 	code := doBody(t, New(&fakeCatalog{}, &fakeHistory{}, tokens), "POST", "/api/catalog/login", `{"otp":"000000"}`, &body)
 	if code != http.StatusUnauthorized || body.Error == "" || tokens.saved != "" {
 		t.Fatalf("code %d, body %+v, saved %q", code, body, tokens.saved)
+	}
+}
+
+func TestAnimeUsesExistingHTTPContract(t *testing.T) {
+	cat := &fakeCatalog{}
+	h := New(cat, &fakeHistory{}, &fakeTokens{})
+	for _, path := range []string{"/api/catalog/home?ott=anime", "/api/catalog/search?ott=anime&q=Cowboy%20Bebop", "/api/catalog/season?ott=anime&id=1%3Adub&page=2"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: %d %s", path, rec.Code, rec.Body.String())
+		}
+	}
+	if cat.lastOTT != "anime" || cat.lastQuery != "Cowboy Bebop" || cat.seasonCalls[0] != "1:dub" {
+		t.Fatalf("lost canonical query: %+v", cat)
+	}
+}
+
+func (f *fakeHistory) Bookmarks() []history.Bookmark            { return []history.Bookmark{} }
+func (f *fakeHistory) SetBookmark(history.Bookmark, bool) error { return nil }
+
+func TestBookmarkHTTPRoundTrip(t *testing.T) {
+	store := history.New(t.TempDir() + "/state.json")
+	h := New(&fakeCatalog{}, store, &fakeTokens{})
+	call := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(method, path, strings.NewReader(body)))
+		return w
+	}
+	path := "/api/catalog/bookmarks?ott=anime&id=1"
+	if w := call("PUT", path, `{"title":"Cowboy Bebop","poster":"https://example.com/p.jpg"}`); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w := call("GET", "/api/catalog/bookmarks", "")
+	var result struct {
+		Items []history.Bookmark `json:"items"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || len(result.Items) != 1 || result.Items[0].OTT != "anime" {
+		t.Fatal(w.Body.String(), err)
+	}
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("mutable bookmarks cached")
+	}
+	if w := call("DELETE", path, ""); w.Code != 200 || len(store.Bookmarks()) != 0 {
+		t.Fatal(w.Body.String())
+	}
+	for _, bad := range []string{"/api/catalog/bookmarks?ott=unknown&id=1", "/api/catalog/bookmarks?ott=anime"} {
+		if w := call("PUT", bad, `{"title":"test"}`); w.Code != 400 {
+			t.Fatal("accepted bad request", w.Code)
+		}
+	}
+	if w := call("PUT", path, `{}`); w.Code != 400 {
+		t.Fatal("accepted empty title")
+	}
+	failed := New(&fakeCatalog{}, history.New(t.TempDir()+"/missing/state.json"), &fakeTokens{})
+	w = httptest.NewRecorder()
+	failed.ServeHTTP(w, httptest.NewRequest("PUT", path, strings.NewReader(`{"title":"test"}`)))
+	if w.Code != 500 {
+		t.Fatal("disk failure reported success", w.Code)
 	}
 }

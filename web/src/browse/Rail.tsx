@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { Info, Play } from "@phosphor-icons/react";
-import type { ReactNode } from "react";
+import { CaretLeft, CaretRight, Info, Play } from "@phosphor-icons/react";
+import { useRef, type ReactNode } from "react";
 import { posterAspect } from "../catalog/types";
 import type { ContinueItem, Ott, Poster, Row } from "../catalog/types";
 import { Img } from "../components/Img";
@@ -24,19 +24,32 @@ export function PosterCard({
     <motion.button
       whileTap={{ scale: 0.96 }}
       onClick={() => onOpen(item.id)}
+      aria-label={item.title || "View title"}
       style={{ aspectRatio: posterAspect(ott, layout) }}
       className={`relative shrink-0 snap-start overflow-hidden rounded-2xl shimmer ring-1 ring-white/[0.08] ${className}`}
     >
       <Img src={item.poster} className="absolute inset-0 size-full object-cover" />
+      {item.title && <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent px-2 pb-2 pt-8 text-left text-xs font-semibold text-bulb">{item.title}</span>}
     </motion.button>
   );
 }
 
 function RailFrame({ title, children }: { title: string; children: ReactNode }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  function scroll(direction: number) {
+    const el = scroller.current;
+    if (el) el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  }
   return (
-    <section className="mt-8">
-      <h2 className="mb-3 px-4 text-[17px] font-semibold tracking-[-0.01em] text-bulb">{title}</h2>
-      <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-4 px-4 pb-1">
+    <section className="catalog-rail mt-8" aria-label={title}>
+      <div className="mb-3 flex items-center justify-between gap-3 px-4">
+        <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-bulb">{title}</h2>
+        <div className="hidden gap-2 lg:flex">
+          <button onClick={() => scroll(-1)} aria-label={`Scroll ${title} left`} className="carousel-control"><CaretLeft weight="bold" /></button>
+          <button onClick={() => scroll(1)} aria-label={`Scroll ${title} right`} className="carousel-control"><CaretRight weight="bold" /></button>
+        </div>
+      </div>
+      <div ref={scroller} className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-4 px-4 pb-1">
         {children}
       </div>
     </section>
@@ -44,7 +57,7 @@ function RailFrame({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function widthFor(ott: Ott, layout: "h" | "v") {
-  return ott === "hs" || layout === "v" ? "w-[31vw] max-w-[150px]" : "w-[44vw] max-w-[220px]";
+  return (ott === "hs" || ott === "anime") || layout === "v" ? "w-[31vw] max-w-[150px]" : "w-[44vw] max-w-[220px]";
 }
 
 export function Rail({ ott, row, onOpen }: { ott: Ott; row: Row; onOpen: (id: string) => void }) {
@@ -83,7 +96,7 @@ export function ContinueRow({
       {items.map((c) => (
         <div
           key={`${c.ott}:${c.titleId}`}
-          className={`shrink-0 snap-start ${c.ott === "hs" ? "w-[36vw] max-w-[170px]" : "w-[62vw] max-w-[280px]"}`}
+          className={`shrink-0 snap-start ${(c.ott === "hs" || c.ott === "anime") ? "w-[36vw] max-w-[170px]" : "w-[62vw] max-w-[280px]"}`}
         >
           <div className="relative">
             <motion.button

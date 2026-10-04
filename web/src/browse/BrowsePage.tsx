@@ -1,6 +1,7 @@
+import { Bookmarks } from "../bookmarks/Bookmarks";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { BookmarkSimple, MagnifyingGlass } from "@phosphor-icons/react";
 import { catalogUrl, useApi } from "../catalog/api";
 import type { ContinueItem, Home, Ott } from "../catalog/types";
 import { useOverlays } from "../nav/Overlays";
@@ -16,7 +17,7 @@ const OTT_KEY = "browse.ott";
 function storedOtt(): Ott {
   try {
     const v = localStorage.getItem(OTT_KEY);
-    if (v === "nf" || v === "pv" || v === "hs") return v;
+    if (v === "nf" || v === "pv" || v === "hs" || v === "anime") return v;
   } catch {
     // Private mode or storage disabled: fall through to the default.
   }
@@ -25,6 +26,7 @@ function storedOtt(): Ott {
 
 export function BrowsePage() {
   const { open } = useOverlays();
+  const [saved, setSaved] = useState(false);
   const [ott, setOttState] = useState<Ott>(storedOtt);
   const [heroIndex, setHeroIndex] = useState(0);
   const home = useApi<Home>(catalogUrl("home", { ott }));
@@ -36,6 +38,7 @@ export function BrowsePage() {
   if (cont.data && cont.data.items !== contItems) setContItems(cont.data.items);
 
   function setOtt(o: Ott) {
+    setSaved(false);
     setOttState(o);
     setHeroIndex(0);
     try {
@@ -52,8 +55,11 @@ export function BrowsePage() {
     <div className="relative min-h-full bg-black text-bulb">
       <AmbientLight src={slide?.img} className="fixed inset-x-0 top-0 h-[90vh]" />
 
-      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-black/35 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-xl">
+      <header className="browse-header sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 bg-black/35 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-xl">
         <OttSwitcher value={ott} onChange={setOtt} layoutGroup="browse" />
+        <button onClick={() => setSaved(value => !value)} aria-pressed={saved} className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${saved ? "bg-bulb text-black" : "bg-white/10 text-bulb"}`}>
+          <BookmarkSimple weight={saved ? "fill" : "bold"} className="size-4" />Bookmarks
+        </button>
         {!connected && (
           <span className="ml-auto flex items-center gap-1.5 text-[12px] font-medium text-red-400">
             <span className="size-1.5 animate-pulse rounded-full bg-red-400" />
@@ -72,16 +78,17 @@ export function BrowsePage() {
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.main
-          key={ott}
+          key={saved ? "bookmarks" : ott}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="relative pb-48 pt-3"
+          className="browse-content relative pb-48 pt-3"
         >
-          {home.status === "loading" && <HomeSkeleton />}
-          {home.status === "error" && <ErrorState message={home.error} onRetry={home.retry} />}
-          {home.status === "ok" && (
+          {saved && <Bookmarks onOpen={openTitle} />}
+          {!saved && home.status === "loading" && <HomeSkeleton />}
+          {!saved && home.status === "error" && <ErrorState message={home.error} onRetry={home.retry} />}
+          {!saved && home.status === "ok" && (
             <>
               <Hero
                 ott={ott}

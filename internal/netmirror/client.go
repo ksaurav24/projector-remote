@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"projectorremote/internal/catalog"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,7 +27,7 @@ const (
 )
 
 var (
-	ErrNotFound = errors.New("netmirror: not found")
+	ErrNotFound = catalog.ErrNotFound
 	// ErrNoToken means NetMirror would not hand out a playable stream:
 	// there is no usertoken, or the one sent was rejected (the server
 	// answers status "otp" and leaves the token off video_link).

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"projectorremote/internal/catalog"
 	"projectorremote/internal/netmirror"
 )
 
@@ -130,5 +131,27 @@ func TestNext(t *testing.T) {
 		if ok && epLabel(season.Number, ep.Num) != tc.wantLabel {
 			t.Errorf("%s: next label = %q, want %q", tc.episode, epLabel(season.Number, ep.Num), tc.wantLabel)
 		}
+	}
+}
+
+func TestAnimeNextSeasonPreservesAudio(t *testing.T) {
+	cat := &fakeCatalog{}
+	title := &netmirror.Title{ID: "anime", SeasonID: "s1", Seasons: []netmirror.Season{
+		{ID: "sub1", Number: 1, Editions: []catalog.Edition{{ID: "sub1", Code: "sub"}, {ID: "s1", Code: "dub"}}},
+		{ID: "sub2", Number: 2, Editions: []catalog.Edition{{ID: "sub2", Code: "sub"}, {ID: "s2", Code: "dub"}}},
+	}, Episodes: showPages["s1/1"]}
+	c, err := locate(context.Background(), cat, "anime", title, "s1", "e3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	season, ep, ok, err := c.next(context.Background(), cat, "anime")
+	if err != nil || !ok || season.ID != "s2" || ep.ID != "f1" {
+		t.Fatalf("%+v %+v %v %v", season, ep, ok, err)
+	}
+	title.SeasonID = "s2"
+	title.Episodes = showPages["s2/1"]
+	c, err = locate(context.Background(), cat, "anime", title, "", "")
+	if err != nil || c.season().ID != "s2" {
+		t.Fatalf("later release default: %+v %v", c, err)
 	}
 }

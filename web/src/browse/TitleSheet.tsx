@@ -1,3 +1,4 @@
+import { BookmarkButton } from "../bookmarks/BookmarkButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CaretDown, Play, SpeakerHigh } from "@phosphor-icons/react";
@@ -50,7 +51,7 @@ export function TitleSheet({
                 <ErrorState message={t.error} onRetry={t.retry} />
               </div>
             )}
-            {t.status === "ok" && <TitleBody ott={ott} title={t.data} onOpenTitle={onOpenTitle} />}
+            {t.status === "ok" && <TitleBody key={`${ott}:${id}`} ott={ott} title={t.data} onOpenTitle={onOpenTitle} />}
           </div>
         </>
       )}
@@ -78,20 +79,23 @@ function TitleBody({
   const play = usePlay();
   const [expanded, setExpanded] = useState(false);
   const series = t.type === "series";
-  const r = t.resume;
+  const [seasonId, setSeasonId] = useState(t.seasonId);
+  const selected = t.seasons.find(s => s.id === seasonId || s.editions?.some(e => e.id === seasonId));
+  const edition = selected?.editions?.find(e => e.id === seasonId);
+  const r = t.resume && (!series || t.resume.seasonId === seasonId) ? t.resume : null;
 
   let sub = t.runtime;
   if (r && r.pos > 0) sub = series ? `${r.epLabel} at ${clock(r.pos)}` : `from ${clock(r.pos)}`;
   else if (r) sub = r.epLabel;
-  else if (series) sub = `S${t.seasons[0]?.number ?? 1} E1`;
+  else if (series) sub = ott === "anime" ? `${edition?.label ?? "Subtitled"} · Episode 1` : `S${selected?.number ?? 1} E1`;
 
   return (
     <>
-      <div className="aspect-video w-full [mask-image:linear-gradient(to_bottom,black_55%,transparent)]">
+      <div className="title-backdrop aspect-video w-full [mask-image:linear-gradient(to_bottom,black_55%,transparent)]">
         <Img src={t.backdrop} loading="eager" className="size-full object-cover" />
       </div>
 
-      <div className="relative -mt-8 px-5 pb-32">
+      <div className="title-content relative -mt-8 px-5 pb-32">
         <h1 className="text-[34px] font-[760] leading-[1.02] tracking-[-0.025em] text-balance [font-stretch:86%]">
           {t.title}
         </h1>
@@ -99,19 +103,22 @@ function TitleBody({
         <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] text-haze">
           {t.year && <span>{t.year}</span>}
           {t.rating && <Badge>{t.rating}</Badge>}
-          <span>{series ? `${t.seasons.length} season${t.seasons.length === 1 ? "" : "s"}` : t.runtime}</span>
+          <span>{ott === "anime" ? `${selected?.episodes ?? 0} episodes · ${t.seasons.length} release${t.seasons.length === 1 ? "" : "s"}` : series ? `${t.seasons.length} season${t.seasons.length === 1 ? "" : "s"}` : t.runtime}</span>
           {t.quality && <Badge>{t.quality}</Badge>}
         </div>
 
         <motion.button
           whileTap={{ scale: 0.97 }}
-          onClick={() => play(ott, t.id)}
-          className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl bg-spot py-3.5 text-spot-ink shadow-[0_10px_32px_-8px_rgba(249,115,22,0.6)]"
+          onClick={() => play(ott, t.id, series ? { seasonId, episodeId: r?.episodeId ?? "" } : undefined)}
+          disabled={ott === "anime" && !selected?.episodes}
+          className="disabled:opacity-40 disabled:cursor-not-allowed mt-6 flex w-full items-center justify-center gap-3 rounded-2xl bg-spot py-3.5 text-spot-ink shadow-[0_10px_32px_-8px_rgba(249,115,22,0.6)]"
         >
           <Play weight="fill" className="size-5" />
           <span className="text-[16px] font-bold">{r ? "Resume" : "Play"}</span>
           {sub && <span className="text-[14px] font-medium opacity-70">{sub}</span>}
         </motion.button>
+
+        <div className="mt-3"><BookmarkButton item={{ ott, titleId: t.id, title: t.title, poster: t.poster }} /></div>
 
         {t.desc && (
           <button
@@ -129,12 +136,13 @@ function TitleBody({
           </p>
         )}
 
-        {series && t.episodes && <Episodes ott={ott} title={t} />}
+        {ott === "anime" && <p className="mt-4 text-sm text-haze">Choose subtitled or English dub below. Stream availability varies by episode.</p>}
+        {series && t.episodes && <Episodes ott={ott} title={t} seasonId={seasonId} setSeasonId={setSeasonId} />}
 
         {t.suggest.length > 0 && (
           <section className="mt-10">
             <h2 className="mb-3 text-[17px] font-semibold tracking-[-0.01em]">More like this</h2>
-            <div className={`grid gap-2.5 ${ott === "hs" ? "grid-cols-3" : "grid-cols-2"}`}>
+            <div className={`grid gap-2.5 ${(ott === "hs" || ott === "anime") ? "grid-cols-3" : "grid-cols-2"}`}>
               {t.suggest.map((p) => (
                 <PosterCard key={p.id} ott={ott} item={p} layout="h" onOpen={(sid) => onOpenTitle(ott, sid)} />
               ))}
@@ -201,9 +209,9 @@ function useEpisodes(ott: Ott, seasonId: string, initial: EpisodePage | null) {
   };
 }
 
-function Episodes({ ott, title }: { ott: Ott; title: Title }) {
-  const [seasonId, setSeasonId] = useState(title.seasonId);
-  const season = title.seasons.find((s) => s.id === seasonId);
+function Episodes({ ott, title, seasonId, setSeasonId }: { ott: Ott; title: Title; seasonId: string; setSeasonId: (id: string) => void }) {
+  const season = title.seasons.find((s) => s.id === seasonId || s.editions?.some(e => e.id === seasonId));
+  const audio = season?.editions?.find(e => e.id === seasonId)?.code;
   const initial = seasonId === title.seasonId ? { ...title.episodes!, progress: title.progress } : null;
 
   return (
@@ -217,10 +225,10 @@ function Episodes({ ott, title }: { ott: Ott; title: Title }) {
           {title.seasons.map((s) => (
             <button
               key={s.id}
-              onClick={() => setSeasonId(s.id)}
+              onClick={() => setSeasonId(s.editions?.find(e => e.code === audio)?.id ?? s.id)}
               className={
                 "shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors " +
-                (s.id === seasonId ? "bg-bulb text-black" : "bg-white/[0.08] text-bulb/80 ring-1 ring-white/10")
+                (s.id === season?.id ? "bg-bulb text-black" : "bg-white/[0.08] text-bulb/80 ring-1 ring-white/10")
               }
             >
               {s.label}
@@ -229,6 +237,10 @@ function Episodes({ ott, title }: { ott: Ott; title: Title }) {
         </div>
       )}
 
+      {season?.editions && <div className="mb-5 flex flex-wrap items-center gap-2" role="group" aria-label="Audio">
+        <span className="mr-2 text-sm text-haze">Audio</span>
+        {season.editions.map(e => <button key={e.id} aria-pressed={e.id === seasonId} onClick={() => setSeasonId(e.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${e.id === seasonId ? "bg-bulb text-black" : "bg-white/10 text-bulb"}`}>{e.label}</button>)}
+      </div>}
       <EpisodeList key={seasonId} ott={ott} titleId={title.id} seasonId={seasonId} initial={initial} />
     </section>
   );
@@ -262,6 +274,7 @@ function EpisodeList({
 
   return (
     <>
+      {!eps.loading && !eps.error && eps.items.length === 0 && <p className="text-sm text-haze">No released episodes are listed yet.</p>}
       <ol className="flex flex-col gap-6">
         {eps.items.map((ep) => {
           const p = eps.progress[ep.id];

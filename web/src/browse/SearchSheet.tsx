@@ -8,6 +8,8 @@ import { Img } from "../components/Img";
 import { OttSwitcher } from "./OttSwitcher";
 import { ErrorState } from "./States";
 
+import { useDialogFocus } from "../hooks/useDialogFocus";
+
 const DEBOUNCE_MS = 300;
 
 export function SearchSheet({
@@ -19,6 +21,7 @@ export function SearchSheet({
   onClose: () => void;
   onOpenTitle: (ott: Ott, id: string) => void;
 }) {
+  const panel = useDialogFocus(onClose);
   const [ott, setOtt] = useState(initialOtt);
   const [text, setText] = useState("");
   const [query, setQuery] = useState("");
@@ -28,17 +31,21 @@ export function SearchSheet({
     return () => window.clearTimeout(t);
   }, [text]);
 
-  const res = useApi<{ items: SearchItem[] }>(query ? catalogUrl("search", { ott, q: query }) : null);
+  const typing = text.trim() !== query;
+ const res = useApi<{ items: SearchItem[] }>(query ? catalogUrl("search", { ott, q: query }) : null);
 
   return (
     <motion.div
+      ref={panel}
+      tabIndex={-1}
+      aria-label="Search catalogue"
       role="dialog"
       aria-modal
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 24 }}
       transition={{ type: "spring", stiffness: 420, damping: 38 }}
-      className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-black text-bulb"
+      className="search-panel fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-black text-bulb"
     >
       <header className="sticky top-0 z-10 bg-black/70 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-xl">
         <div className="flex items-center gap-2">
@@ -71,16 +78,16 @@ export function SearchSheet({
         {!query && (
           <p className="pt-16 text-center text-[15px] text-haze">Find a movie or show on {ottLabel(ott)}.</p>
         )}
-        {query && res.status === "loading" && <ResultsSkeleton ott={ott} />}
-        {query && res.status === "error" && <ErrorState message={res.error} onRetry={res.retry} />}
-        {query && res.status === "ok" && res.data.items.length === 0 && (
+        {(typing || (query && res.status === "loading")) && <ResultsSkeleton ott={ott} />}
+        {!typing && query && res.status === "error" && <ErrorState message={res.error} onRetry={res.retry} />}
+        {!typing && query && res.status === "ok" && res.data.items.length === 0 && (
           <div className="pt-16 text-center">
             <p className="text-[15px] text-bulb/85">Nothing on {ottLabel(ott)} matches “{query}”.</p>
             <p className="mt-1.5 text-[14px] text-haze">Check the spelling, or search another platform.</p>
           </div>
         )}
-        {query && res.status === "ok" && res.data.items.length > 0 && (
-          <div className={`grid gap-x-2.5 gap-y-4 ${ott === "hs" ? "grid-cols-3" : "grid-cols-2"}`}>
+        {!typing && query && res.status === "ok" && res.data.items.length > 0 && (
+          <div className={`grid gap-x-2.5 gap-y-4 ${(ott === "hs" || ott === "anime") ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-3"}`}>
             {res.data.items.map((it) => (
               <motion.button
                 key={it.id}
@@ -106,7 +113,7 @@ export function SearchSheet({
 
 function ResultsSkeleton({ ott }: { ott: Ott }) {
   return (
-    <div aria-busy className={`grid gap-x-2.5 gap-y-4 ${ott === "hs" ? "grid-cols-3" : "grid-cols-2"}`}>
+    <div aria-busy className={`grid gap-x-2.5 gap-y-4 ${(ott === "hs" || ott === "anime") ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-3"}`}>
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i}>
           <div style={{ aspectRatio: posterAspect(ott, "h") }} className="rounded-xl shimmer" />

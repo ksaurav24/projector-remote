@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useDialogFocus } from "../hooks/useDialogFocus";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -63,15 +64,17 @@ const KINDS: { kind: Kind; name: string; Icon: typeof SpeakerHigh }[] = [
 
 export function NowPlayingSheet({ onClose }: { onClose: () => void }) {
   const { nowPlaying: np } = useWs();
-  const ended = np === null;
+  const observed = useRef(false);
+ const ended = np === null;
 
   // Playback ended elsewhere (Back on the projector, another phone):
   // nothing left to control.
   useEffect(() => {
-    if (ended) onClose();
+    if (!ended) observed.current = true;
+ else if (observed.current) onClose();
   }, [ended, onClose]);
 
-  if (!np) return null;
+  if (!np) return <Sheet onClose={onClose} compact>{() => <div className="p-8"><button onClick={onClose} className="mb-6 rounded-full bg-white/10 px-4 py-2">Minimize player</button><p role="status">Starting on the projector…</p></div>}</Sheet>;
   return <SheetBody np={np} onClose={onClose} />;
 }
 
@@ -80,7 +83,7 @@ function SheetBody({ np, onClose }: { np: NowPlaying; onClose: () => void }) {
   const play = usePlay();
   const pos = useLivePos(np);
   const [picker, setPicker] = useState<Kind | null>(null);
-  const tall = np.ott === "hs";
+  const tall = np.ott === "hs" || np.ott === "anime";
   const busy = np.status === "loading" || np.status === "buffering";
 
   const cmd = (m: Parameters<typeof send>[0]) => {
@@ -89,7 +92,7 @@ function SheetBody({ np, onClose }: { np: NowPlaying; onClose: () => void }) {
   };
 
   return (
-    <Sheet onClose={onClose}>
+    <Sheet onClose={onClose} compact>
       {(startDrag) => (
         <>
           <AmbientLight src={np.poster} className="absolute inset-x-0 top-0 h-[110vh]" />
@@ -101,7 +104,7 @@ function SheetBody({ np, onClose }: { np: NowPlaying; onClose: () => void }) {
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Minimize player"
             className="absolute left-4 top-[calc(env(safe-area-inset-top)+12px)] z-20 grid size-10 place-items-center rounded-full bg-black/40 ring-1 ring-white/15 backdrop-blur-md"
           >
             <CaretDown weight="bold" className="size-5" />
@@ -130,14 +133,14 @@ function SheetBody({ np, onClose }: { np: NowPlaying; onClose: () => void }) {
             </p>
 
             {np.status === "error" && np.needsLogin ? (
-              <LoginCard onLoggedIn={() => play(np.ott, np.titleId)} onDismiss={() => cmd({ type: "stop" })} />
+              <LoginCard onLoggedIn={() => play(np.ott, np.titleId, np.seasonId ? { seasonId: np.seasonId, episodeId: np.contentId } : undefined)} onDismiss={() => cmd({ type: "stop" })} />
             ) : np.status === "error" ? (
               <div className="mt-7 rounded-3xl bg-white/[0.07] p-5 ring-1 ring-white/10">
                 <p className="text-[16px] font-semibold">Playback stopped</p>
                 <p className="mt-1 text-[14px] leading-relaxed text-bulb/75">{np.error}</p>
                 <div className="mt-4 flex gap-2.5">
                   <button
-                    onClick={() => play(np.ott, np.titleId)}
+                    onClick={() => play(np.ott, np.titleId, np.seasonId ? { seasonId: np.seasonId, episodeId: np.contentId } : undefined)}
                     className="flex-1 rounded-2xl bg-spot py-3 text-[15px] font-bold text-spot-ink"
                   >
                     Try again
@@ -282,6 +285,7 @@ function TrackPicker({
   onPick: (kind: Kind, id: string) => void;
   onClose: () => void;
 }) {
+  const panel = useDialogFocus(onClose, kind !== null);
   const name = KINDS.find((k) => k.kind === kind)?.name;
   return (
     <AnimatePresence>
@@ -297,13 +301,16 @@ function TrackPicker({
           />
           <motion.div
             key="panel"
+            ref={panel}
+            tabIndex={-1}
+            aria-modal
             role="dialog"
             aria-label={name}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 420, damping: 40 }}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-[28px] bg-neutral-900 px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-3 ring-1 ring-white/10"
+            className="track-picker fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-[28px] bg-neutral-900 px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-3 ring-1 ring-white/10"
           >
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-white/25" />
             <h2 className="mb-2 text-[17px] font-semibold">{name}</h2>

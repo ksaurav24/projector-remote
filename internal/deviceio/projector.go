@@ -21,6 +21,7 @@ const (
 	minKeystoneAngle    = -40
 	maxKeystoneAngle    = 40
 	focusWatchdog       = 1200 * time.Millisecond
+	contentCallTimeout  = 8 * time.Second
 	settingsReadWorkers = 2
 	cornerMaxX          = 64
 	cornerMaxY          = 36
@@ -151,7 +152,7 @@ func (execPropertyCaller) SetCornerSteps(corner string, point CornerPoint) error
 }
 
 func (execContentCaller) Call(uri, method string, extras ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), contentCallTimeout)
 	defer cancel()
 	args := []string{"call", "--uri", uri, "--method", method}
 	for _, extra := range extras {
@@ -159,6 +160,9 @@ func (execContentCaller) Call(uri, method string, extras ...string) (string, err
 	}
 	out, err := exec.CommandContext(ctx, "content", args...).CombinedOutput()
 	if err != nil {
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("deviceio: content %s timed out after %s: %w", method, contentCallTimeout, ctx.Err())
+		}
 		return "", fmt.Errorf("deviceio: content %s: %w: %s", method, err, strings.TrimSpace(string(out)))
 	}
 	return string(out), nil

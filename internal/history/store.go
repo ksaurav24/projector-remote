@@ -77,7 +77,15 @@ type Resume struct {
 	Dur       int64  `json:"dur"`
 }
 
+type Bookmark struct {
+	OTT     string `json:"ott"`
+	TitleID string `json:"titleId"`
+	Title   string `json:"title"`
+	Poster  string `json:"poster"`
+}
+
 type fileData struct {
+	Bookmarks []Bookmark          `json:"bookmarks,omitempty"`
 	Positions map[string]Position `json:"positions"`
 	Recent    []Entry             `json:"recent"`
 	Prefs     Prefs               `json:"prefs"`
@@ -251,15 +259,19 @@ func (s *Store) SetPrefs(p Prefs) {
 // logged, not returned: losing a position update isn't worth failing
 // playback over. Callers hold s.mu.
 func (s *Store) save() {
+	if err := s.persist(); err != nil {
+		log.Printf("history: save: %v", err)
+	}
+}
+
+func (s *Store) persist() error {
 	b, err := json.Marshal(s.data)
 	if err != nil {
-		log.Printf("history: marshal: %v", err)
-		return
+		return err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(s.path), ".state-*.tmp")
 	if err != nil {
-		log.Printf("history: save: %v", err)
-		return
+		return err
 	}
 	_, werr := tmp.Write(b)
 	// CreateTemp makes the file 0600; nothing in it is secret, and being
@@ -268,11 +280,39 @@ func (s *Store) save() {
 	cerr := tmp.Close()
 	if werr != nil || cherr != nil || cerr != nil {
 		os.Remove(tmp.Name())
-		log.Printf("history: save: %v", errors.Join(werr, cherr, cerr))
-		return
+		return errors.Join(werr, cherr, cerr)
 	}
 	if err := os.Rename(tmp.Name(), s.path); err != nil {
 		os.Remove(tmp.Name())
-		log.Printf("history: save: %v", err)
+		return err
 	}
+	return nil
+}
+
+// Bookmarks are independent of continue-watching and are never evicted when
+// a title finishes. Return a copy so callers cannot mutate the store.
+func (s *Store) Bookmarks() []Bookmark {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]Bookmark{}, s.data.Bookmarks...)
+}
+func (s *Store) SetBookmark(b Bookmark, saved bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.data.Bookmarks
+	next := make([]Bookmark, 0, len(previous)+1)
+	if saved {
+		next = append(next, b)
+	}
+	for _, item := range previous {
+		if item.OTT != b.OTT || item.TitleID != b.TitleID {
+			next = append(next, item)
+		}
+	}
+	s.data.Bookmarks = next
+	if err := s.persist(); err != nil {
+		s.data.Bookmarks = previous
+		return err
+	}
+	return nil
 }

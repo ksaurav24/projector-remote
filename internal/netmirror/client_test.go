@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -270,7 +271,7 @@ func TestTitle_NetflixSeries(t *testing.T) {
 		t.Errorf("series = %+v", s)
 	}
 	wantSeason := Season{ID: "81762866", Number: 1, Label: "Season 1", Episodes: 7}
-	if len(s.Seasons) != 1 || s.Seasons[0] != wantSeason || s.SeasonID != "81762866" {
+	if len(s.Seasons) != 1 || !reflect.DeepEqual(s.Seasons[0], wantSeason) || s.SeasonID != "81762866" {
 		t.Fatalf("seasons = %+v, seasonId %q", s.Seasons, s.SeasonID)
 	}
 	if s.Episodes == nil || len(s.Episodes.Items) != 7 || s.Episodes.NextPage != nil {

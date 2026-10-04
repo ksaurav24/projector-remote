@@ -9,6 +9,7 @@ type NowPlaying struct {
 	OTT       string `json:"ott"`
 	TitleID   string `json:"titleId"`
 	ContentID string `json:"contentId"`
+	SeasonID  string `json:"seasonId"`
 	Title     string `json:"title"`
 	// EpLabel ("S1 E3") and EpTitle are empty for movies.
 	EpLabel string `json:"epLabel"`

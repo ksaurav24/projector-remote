@@ -2,6 +2,7 @@ package wsserver
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -188,6 +189,38 @@ func TestHub_ReusesWarmedSettingsOnReconnect(t *testing.T) {
 	}
 	if !seenSettings {
 		t.Fatal("reconnected client did not receive cached settings")
+	}
+}
+
+func TestHub_RecoversFromInitialSettingsFailure(t *testing.T) {
+	ctrl := newMockCtrl()
+	ctrl.settings = deviceio.ProjectorSettings{Zoom: 68, Features: map[string]bool{}, Corners: map[string]deviceio.CornerPoint{}}
+	ctrl.settingsFailures = 1
+	ctrl.settingsErr = errors.New("transient provider failure")
+	hub := newHub(ctrl, newMockPlayback(), 10*time.Millisecond)
+	srv := httptest.NewServer(hub)
+	defer srv.Close()
+
+	conn := dialWS(t, srv)
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	seenError := false
+	seenRecovery := false
+	for !seenRecovery {
+		typ, msg := readTyped(t, conn)
+		switch typ {
+		case "settings_error":
+			seenError = true
+		case "projector_settings":
+			settings := msg["settings"].(map[string]any)
+			if settings["zoom"] != float64(68) {
+				t.Fatalf("zoom = %v", settings["zoom"])
+			}
+			seenRecovery = true
+		}
+	}
+	if !seenError {
+		t.Fatal("client did not receive the initial settings error")
 	}
 }
 
