@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CaretLeft, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { catalogUrl, useApi } from "../catalog/api";
-import { ottLabel, posterAspect } from "../catalog/types";
+import { ottLabel, posterAspect, tallPosters } from "../catalog/types";
 import type { Ott, SearchItem } from "../catalog/types";
 import { Img } from "../components/Img";
 import { OttSwitcher } from "./OttSwitcher";
@@ -87,7 +87,7 @@ export function SearchSheet({
           </div>
         )}
         {!typing && query && res.status === "ok" && res.data.items.length > 0 && (
-          <div className={`grid gap-x-2.5 gap-y-4 ${(ott === "hs" || ott === "anime") ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-3"}`}>
+          <div className={`grid gap-x-2.5 gap-y-4 ${tallPosters(ott) ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-3"}`}>
             {res.data.items.map((it) => (
               <motion.button
                 key={it.id}
@@ -113,7 +113,7 @@ export function SearchSheet({
 
 function ResultsSkeleton({ ott }: { ott: Ott }) {
   return (
-    <div aria-busy className={`grid gap-x-2.5 gap-y-4 ${(ott === "hs" || ott === "anime") ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-3"}`}>
+    <div aria-busy className={`grid gap-x-2.5 gap-y-4 ${tallPosters(ott) ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-3"}`}>
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i}>
           <div style={{ aspectRatio: posterAspect(ott, "h") }} className="rounded-xl shimmer" />

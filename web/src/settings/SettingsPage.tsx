@@ -9,11 +9,13 @@ import {
   MagicWand,
   ProjectorScreen,
   SlidersHorizontal,
+  SkipForward,
   WarningCircle,
 } from "@phosphor-icons/react";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useWs } from "../ws/WsContext";
 import type { Corner, CornerPoint, ProjectorSettings } from "../ws/client";
+import type { SkipMode } from "../playback/types";
 
 const FEATURES = [
   ["autoFocus", "Auto focus", "Refocus when the projector or screen moves"],
@@ -365,6 +367,42 @@ function LoadingCards() {
   );
 }
 
+const SKIP_MODES: { id: SkipMode; label: string }[] = [
+  { id: "manual", label: "Manual" },
+  { id: "auto", label: "Automatic" },
+  { id: "off", label: "Off" },
+];
+
+function AnimeSkipCard() {
+  const { connected, animeSkipSettings: settings, animeSkipError: error, animeSkipSaving: saving, send } = useWs();
+  return (
+    <Card icon={SkipForward} title="Anime intros and outros" caption="Choose how you skip songs when timings are available." className="mb-5">
+      <div className="grid gap-5 sm:grid-cols-2">
+        {(["intro", "outro"] as const).map((kind) => (
+          <fieldset key={kind} disabled={!connected || !settings || saving}>
+            <legend className="mb-2 text-sm font-semibold">{kind === "intro" ? "Intro" : "Outro"}</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {SKIP_MODES.map(({ id, label }) => (
+                <button
+                  type="button"
+                  key={id}
+                  aria-pressed={settings?.[kind] === id}
+                  onClick={() => send({ type: "set_anime_skip", kind, mode: id })}
+                  className={`min-h-12 rounded-xl border px-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-50 ${settings?.[kind] === id ? "border-orange-400 bg-orange-50 text-orange-800 dark:border-orange-600 dark:bg-orange-950/40 dark:text-orange-200" : "border-neutral-200 bg-neutral-50 text-neutral-700 active:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700"}`}
+                >{label}</button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      <p className="mt-4 text-sm leading-5 text-neutral-600 dark:text-neutral-300">Manual shows a skip button. Automatic skips for you. Off hides skip controls. Outro skips keep any scenes after the credits.</p>
+      <p role="status" aria-live="polite" className={`mt-2 min-h-5 text-sm ${error ? "text-red-700 dark:text-red-300" : "text-neutral-600 dark:text-neutral-300"}`}>
+        {error ?? (saving ? "Saving…" : !connected ? "Reconnect to change your preferences." : !settings ? "Loading preferences…" : "Saved on your projector. Changes apply to the current episode too.")}
+      </p>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { connected, projectorSettings: settings, settingsError, send } = useWs();
   const [zoom, setZoom] = useState(100);
@@ -384,13 +422,14 @@ export function SettingsPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[.18em] text-orange-500">Projector</p>
-            <h1 className="text-lg font-bold">Picture setup</h1>
+            <h1 className="text-lg font-bold">Settings</h1>
           </div>
           <ConnectionStatus connected={connected} />
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-44 pt-5 md:px-8 md:pt-8">
+        <AnimeSkipCard />
         {settingsError && (
           <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
             <WarningCircle weight="fill" className="mt-0.5 size-5 shrink-0" />

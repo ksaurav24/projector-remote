@@ -52,6 +52,7 @@ func New(cat Catalog, hist History, tokens Tokens) http.Handler {
 	mux.HandleFunc("GET /api/catalog/bookmarks", h.bookmarks)
 	mux.HandleFunc("PUT /api/catalog/bookmarks", h.setBookmark)
 	mux.HandleFunc("DELETE /api/catalog/bookmarks", h.setBookmark)
+	mux.HandleFunc("GET /api/catalog/sources", h.sources)
 	mux.HandleFunc("GET /api/catalog/home", h.home)
 	mux.HandleFunc("GET /api/catalog/search", h.search)
 	mux.HandleFunc("GET /api/catalog/title", h.title)
@@ -84,6 +85,10 @@ func upstreamError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusNotFound, "title not found")
 		return
 	}
+	if errors.Is(err, catalog.ErrOffline) {
+		writeError(w, http.StatusServiceUnavailable, "The media server on your laptop isn't reachable. Check it's running and on Tailscale.")
+		return
+	}
 	log.Printf("catalogapi: %s: %v", r.URL.Path, err)
 	writeError(w, http.StatusBadGateway, "The catalogue is not responding. Try again.")
 }
@@ -93,7 +98,7 @@ func upstreamError(w http.ResponseWriter, r *http.Request, err error) {
 func ott(w http.ResponseWriter, r *http.Request) (string, bool) {
 	o := r.URL.Query().Get("ott")
 	if !catalog.ValidOTT(o) {
-		writeError(w, http.StatusBadRequest, "ott must be nf, pv, hs, or anime")
+		writeError(w, http.StatusBadRequest, "ott must be nf, pv, hs, anime, or local")
 		return "", false
 	}
 	return o, true
@@ -239,6 +244,17 @@ func (h *handler) season(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, seasonResponse{EpisodePage: eps, Progress: h.progress(o, episodeIDs(eps)...)})
+}
+
+// sources says which optional catalogues are reachable now, so the remote
+// shows the laptop library only while its server is up.
+func (h *handler) sources(w http.ResponseWriter, r *http.Request) {
+	local := false
+	if a, ok := h.cat.(interface{ Available(string) bool }); ok {
+		local = a.Available("local")
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]bool{"local": local})
 }
 
 func (h *handler) continueWatching(w http.ResponseWriter, r *http.Request) {

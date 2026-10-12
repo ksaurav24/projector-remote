@@ -75,6 +75,8 @@ type incoming struct {
 	TitleID   string `json:"titleId"`
 	SeasonID  string `json:"seasonId"`
 	EpisodeID string `json:"episodeId"`
+	ContentID string `json:"contentId"`
+	LoadID    string `json:"loadId"`
 	Paused    bool   `json:"paused"`
 	To        int64  `json:"to"`
 	By        int64  `json:"by"`
@@ -143,6 +145,18 @@ func Dispatch(ctx context.Context, ctrl DeviceController, pb Playback, raw []byt
 		return nil
 	case "set_paused":
 		return pb.SetPaused(msg.Paused)
+	case "set_anime_skip":
+		if settings, ok := pb.(interface{ SetSkipMode(string, string) error }); ok {
+			return settings.SetSkipMode(msg.Kind, msg.Mode)
+		}
+		return fmt.Errorf("anime skip settings unavailable")
+	case "skip_segment":
+		if skipper, ok := pb.(interface {
+			SkipSegment(string, string, string) error
+		}); ok {
+			return skipper.SkipSegment(msg.ContentID, msg.LoadID, msg.Kind)
+		}
+		return fmt.Errorf("skip timestamps unavailable")
 	case "seek":
 		return pb.SeekTo(msg.To)
 	case "skip":

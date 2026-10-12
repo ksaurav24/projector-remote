@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { WsClient } from "./client";
 import type { ServerMessage, ClientMessage } from "./client";
 import type { ProjectorSettings, ProjectorSettingsPatch } from "./client";
-import type { NowPlaying } from "../playback/types";
+import type { NowPlaying, AnimeSkipSettings } from "../playback/types";
 import { invalidate } from "../catalog/api";
 
 function wsUrl(): string {
@@ -12,6 +12,9 @@ function wsUrl(): string {
 }
 
 interface WsContextValue {
+  animeSkipSettings: AnimeSkipSettings | null;
+  animeSkipError: string | null;
+  animeSkipSaving: boolean;
   connected: boolean;
   apps: string[];
   volume: number;
@@ -36,6 +39,9 @@ function mergeSettings(current: ProjectorSettings, patch: ProjectorSettingsPatch
 }
 
 export function WsProvider({ children }: { children: ReactNode }) {
+  const [animeSkipSettings, setAnimeSkipSettings] = useState<AnimeSkipSettings | null>(null);
+  const [animeSkipError, setAnimeSkipError] = useState<string | null>(null);
+  const [animeSkipSaving, setAnimeSkipSaving] = useState(false);
   // The WsClient (and the WebSocket connection it opens) is a side
   // effect, so it's created inside useEffect, not useMemo - useMemo's
   // factory isn't guaranteed to run exactly once (React may invoke it
@@ -61,6 +67,16 @@ export function WsProvider({ children }: { children: ReactNode }) {
     const client = new WsClient(wsUrl());
     clientRef.current = client;
     const unsub = client.subscribe((msg: ServerMessage) => {
+      if (msg.type === "anime_skip_settings") {
+        setAnimeSkipSettings(msg.settings);
+        setAnimeSkipSaving(false);
+        setAnimeSkipError(null);
+      }
+      if (msg.type === "anime_skip_error") {
+        setAnimeSkipSaving(false);
+        setAnimeSkipError(msg.message);
+      }
+      if (msg.type === "status" && !msg.connected) setAnimeSkipSaving(false);
       if (msg.type === "status") setConnected(msg.connected);
       if (msg.type === "apps") setApps(msg.items);
       if (msg.type === "volume") setVolume(msg.value);
@@ -152,6 +168,10 @@ export function WsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function send(msg: ClientMessage) {
+    if (msg.type === "set_anime_skip") {
+      setAnimeSkipSaving(true);
+      setAnimeSkipError(null);
+    }
     let patch: ProjectorSettingsPatch | null = null;
     if (msg.type === "set_zoom") {
       patch = { zoom: msg.percent };
@@ -175,6 +195,9 @@ export function WsProvider({ children }: { children: ReactNode }) {
   }
 
   const value: WsContextValue = {
+    animeSkipSettings,
+    animeSkipError,
+    animeSkipSaving,
     connected,
     apps,
     volume,

@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Vandana Cinema</string>
+    <string name="morning">Good morning,\nVandana.</string>
+    <string name="afternoon">Good afternoon,\nVandana.</string>
+    <string name="evening">Good evening,\nVandana.</string>
+    <string name="welcome_line">Your little cinema awaits.</string>
+    <string name="scan_instruction">Scan to open your remote</string>
+    <string name="same_wifi">Connect your phone to the same Wi-Fi.</string>
+    <string name="tailnet_hint">Connect your phone to Tailscale.</string>
+    <string name="original_home">Open original home</string>
+    <string name="network_settings">Network settings</string>
+    <string name="home_hint">Press Home anytime to return here.</string>
+    <string name="ready">Remote is ready</string>
+    <string name="starting">Remote is starting…</string>
+    <string name="waiting_network">Waiting for a network connection</string>
+    <string name="waiting_help">Open Network settings to connect to Wi-Fi.</string>
+    <string name="waiting_server">Remote is unavailable. Retrying automatically…</string>
+    <string name="unavailable">Couldn’t open that screen. Try the original home.</string>
+    <string name="original_unavailable">Couldn’t open the original home. Press Home to stay here.</string>
+    <string name="qr_description">QR code to open the projector remote</string>
+</resources>

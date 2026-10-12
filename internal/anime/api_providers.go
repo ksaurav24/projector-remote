@@ -192,6 +192,7 @@ func (a *AniKoto) Resolve(ctx context.Context, m Media, ep int, audio string) (*
 			continue
 		}
 		var v struct {
+			skipFields
 			URL       string            `json:"url"`
 			Type      string            `json:"type"`
 			EmbedURL  string            `json:"embedUrl"`
@@ -211,7 +212,7 @@ func (a *AniKoto) Resolve(ctx context.Context, m Media, ep int, audio string) (*
 			u, _ := url.Parse(v.EmbedURL)
 			referer = u.Scheme + "://" + u.Host + "/"
 		}
-		return &catalog.Stream{URL: v.URL, MimeType: mime, Referer: referer, Headers: v.Headers, Subtitles: subtitles(v.Subtitles)}, nil
+		return &catalog.Stream{URL: v.URL, MimeType: mime, Referer: referer, Headers: v.Headers, Subtitles: subtitles(v.Subtitles), SkipRanges: v.ranges()}, nil
 	}
 	return nil, fmt.Errorf("AniKoto: no playable %s source", audio)
 }
@@ -229,8 +230,10 @@ func (a *ReAnime) Resolve(ctx context.Context, m Media, ep int, audio string) (*
 		return nil, fmt.Errorf("ReAnime API URL is not configured")
 	}
 	var out struct {
+		skipFields
 		Audio   string `json:"audio"`
 		Streams []struct {
+			skipFields
 			URL     string            `json:"url"`
 			Type    string            `json:"type"`
 			Referer string            `json:"referer"`
@@ -253,7 +256,7 @@ func (a *ReAnime) Resolve(ctx context.Context, m Media, ep int, audio string) (*
 		if ref == "" {
 			ref = "https://flixcloud.cc/"
 		}
-		return &catalog.Stream{URL: v.URL, Referer: ref, Headers: v.Headers, MimeType: mime, Subtitles: subtitles(out.Subtitles)}, nil
+		return &catalog.Stream{URL: v.URL, Referer: ref, Headers: v.Headers, MimeType: mime, Subtitles: subtitles(out.Subtitles), SkipRanges: v.ranges().Fill(out.ranges())}, nil
 	}
 	return nil, fmt.Errorf("ReAnime: no playable source")
 }
@@ -277,7 +280,7 @@ func New(c Config) *Service {
 			*v.value = v.fallback
 		}
 	}
-	return &Service{PrefixSearch: &PrefixSearch{URL: c.SearchURL}, Concurrent: true, EpisodeMetadata: NewEpisodeMetadata(c.EpisodesURL), Metadata: NewMetadata(c.AniListURL), Providers: []Provider{
+	return &Service{SkipClient: &SkipClient{}, PrefixSearch: &PrefixSearch{URL: c.SearchURL}, Concurrent: true, EpisodeMetadata: NewEpisodeMetadata(c.EpisodesURL), Metadata: NewMetadata(c.AniListURL), Providers: []Provider{
 		&ReAnime{Base: c.ReAnimeURL, Client: defaultHTTP},
 		&Scraper{Kind: "animegg", Base: c.AnimeGGURL, Client: defaultHTTP},
 		&Scraper{Kind: "anineko", Base: c.AniNekoURL, Client: defaultHTTP},

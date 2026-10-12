@@ -21,15 +21,47 @@ type LoginSource interface {
 type Router struct {
 	Default LoginSource
 	Anime   Source
+	// Local is the laptop media library; nil when not configured.
+	Local AvailableSource
+}
+
+// AvailableSource is a source that may come and go.
+type AvailableSource interface {
+	Source
+	Available() bool
 }
 
 func (r *Router) source(ott string) Source {
-	if ott == "anime" {
+	switch ott {
+	case "anime":
 		return r.Anime
+	case "local":
+		if r.Local == nil {
+			return offline{}
+		}
+		return r.Local
 	}
 	return r.Default
 }
-func (r *Router) Home(c context.Context, o string) (*Home, error) { return r.source(o).Home(c, o) }
+
+// Available reports whether a catalogue can be browsed right now.
+func (r *Router) Available(ott string) bool {
+	if ott == "local" {
+		return r.Local != nil && r.Local.Available()
+	}
+	return ValidOTT(ott)
+}
+
+type offline struct{}
+
+func (offline) Home(context.Context, string) (*Home, error)                  { return nil, ErrOffline }
+func (offline) Search(context.Context, string, string) ([]SearchItem, error) { return nil, ErrOffline }
+func (offline) Title(context.Context, string, string) (*Title, error)        { return nil, ErrOffline }
+func (offline) Season(context.Context, string, string, int) (*EpisodePage, error) {
+	return nil, ErrOffline
+}
+func (offline) Resolve(context.Context, string, string) (*Stream, error) { return nil, ErrOffline }
+func (r *Router) Home(c context.Context, o string) (*Home, error)        { return r.source(o).Home(c, o) }
 func (r *Router) Search(c context.Context, o, q string) ([]SearchItem, error) {
 	return r.source(o).Search(c, o, q)
 }
@@ -41,6 +73,15 @@ func (r *Router) Season(c context.Context, o, id string, p int) (*EpisodePage, e
 }
 func (r *Router) Resolve(c context.Context, o, id string) (*Stream, error) {
 	return r.source(o).Resolve(c, o, id)
+}
+
+func (r *Router) SkipTimes(c context.Context, o, id string, stream *Stream, duration int64) SkipRanges {
+	if source, ok := r.source(o).(interface {
+		SkipTimes(context.Context, string, string, *Stream, int64) SkipRanges
+	}); ok {
+		return source.SkipTimes(c, o, id, stream, duration)
+	}
+	return stream.SkipRanges.ForDuration(duration)
 }
 func (r *Router) LoginImage(c context.Context) (string, error)        { return r.Default.LoginImage(c) }
 func (r *Router) Login(c context.Context, otp string) (string, error) { return r.Default.Login(c, otp) }

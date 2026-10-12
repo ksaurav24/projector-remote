@@ -22,6 +22,7 @@ type Provider interface {
 }
 
 type Service struct {
+	SkipClient      *SkipClient
 	PrefixSearch    *PrefixSearch
 	Metadata        *Metadata
 	EpisodeMetadata *EpisodeMetadata

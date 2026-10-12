@@ -80,13 +80,16 @@ type nextTarget struct {
 }
 
 type session struct {
-	cancel   context.CancelFunc
-	gen      int
-	np       NowPlaying
-	seasonID string
-	next     *nextTarget
-	stream   *catalog.Stream
-	startPos int64
+	loadVersion   int
+	skipAttempted bool
+	skipCancel    context.CancelFunc
+	cancel        context.CancelFunc
+	gen           int
+	np            NowPlaying
+	seasonID      string
+	next          *nextTarget
+	stream        *catalog.Stream
+	startPos      int64
 
 	// delivered is set once the connected player has this session's
 	// stream (sent a load, or said on reconnect it's already playing it).
@@ -100,7 +103,8 @@ type session struct {
 }
 
 type Manager struct {
-	d Deps
+	d         Deps
+	loadEpoch int64
 
 	mu     sync.Mutex
 	gen    int
@@ -112,7 +116,7 @@ func New(d Deps) *Manager {
 	if d.Clock == nil {
 		d.Clock = realClock{}
 	}
-	return &Manager{d: d}
+	return &Manager{d: d, loadEpoch: time.Now().UnixNano()}
 }
 
 // Snapshot returns the current session, or nil if nothing is playing.
@@ -157,6 +161,8 @@ func userMessage(err error) string {
 		return "The source providers took too long to respond. Try again."
 	case errors.Is(err, catalog.ErrNotFound):
 		return "This title is not available"
+	case errors.Is(err, catalog.ErrOffline):
+		return "The media server on your laptop isn't reachable"
 	}
 	return "No playable source is available. Try again in a moment."
 }
@@ -272,22 +278,37 @@ func (m *Manager) Play(ctx context.Context, ott, titleID, seasonID, episodeID st
 
 func (m *Manager) sendLoadLocked() {
 	s := m.sess
+	if s.skipCancel != nil {
+		s.skipCancel()
+		s.skipCancel = nil
+	}
+	s.skipAttempted = false
+	s.loadVersion++
+	s.np.LoadID = fmt.Sprintf("%d:%d:%d", m.loadEpoch, s.gen, s.loadVersion)
+	s.np.SkipSettings = m.SkipSettings()
+	s.np.SkipRanges = catalog.SkipRanges{}
+	if s.np.OTT == "anime" {
+		s.np.SkipRanges = s.stream.SkipRanges.ForDuration(0)
+	}
 	subtitle := s.np.EpLabel
 	if s.np.EpTitle != "" {
 		subtitle += ": " + s.np.EpTitle
 	}
 	m.sendLocked(map[string]any{
-		"type":      "load",
-		"contentId": s.np.ContentID,
-		"url":       s.stream.URL,
-		"referer":   s.stream.Referer,
-		"headers":   s.stream.Headers,
-		"mimeType":  s.stream.MimeType,
-		"subtitles": s.stream.Subtitles,
-		"title":     s.np.Title,
-		"subtitle":  subtitle,
-		"startPos":  s.startPos,
-		"prefs":     m.d.History.Prefs(),
+		"type":         "load",
+		"loadId":       s.np.LoadID,
+		"skipRanges":   s.np.SkipRanges,
+		"skipSettings": s.np.SkipSettings,
+		"contentId":    s.np.ContentID,
+		"url":          s.stream.URL,
+		"referer":      s.stream.Referer,
+		"headers":      s.stream.Headers,
+		"mimeType":     s.stream.MimeType,
+		"subtitles":    s.stream.Subtitles,
+		"title":        s.np.Title,
+		"subtitle":     subtitle,
+		"startPos":     s.startPos,
+		"prefs":        m.d.History.Prefs(),
 	})
 	s.delivered = true
 	if s.connectTimer != nil {
@@ -320,6 +341,10 @@ func (m *Manager) failLocked(msg string) {
 }
 
 func (m *Manager) stopTimersLocked(s *session) {
+	if s.skipCancel != nil {
+		s.skipCancel()
+		s.skipCancel = nil
+	}
 	for _, t := range []Timer{s.connectTimer, s.countdownTimer} {
 		if t != nil {
 			t.Stop()

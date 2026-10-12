@@ -9,6 +9,37 @@ Install the rebuilt player APK together with the rebuilt server. This player
 version adds MP4 and external subtitle support; an older APK only handles HLS.
 Build and deployment commands are in [README](../README.md#build).
 
+## Skip intro and outro
+
+Open **Settings → Anime intros and outros** to choose **Manual**, **Automatic**,
+or **Off** independently for intros and outros. Both default to Manual. The
+projector saves these preferences, shares them with connected phones, and
+applies changes to the current episode.
+
+When timings are available, **Skip intro** or **Skip outro** appears during
+that segment in the phone player and on the projector. On the projector's
+physical remote, press Down to select the button, then OK to skip. Automatic
+skipping runs in the Android player; skipping an outro seeks to its end and
+continues any post-credit scene. Next-episode autoplay still starts at the end
+of playback. Manually seeking into a song lets you watch it without being
+automatically skipped again during that episode.
+
+Timings come from the selected stream first: AniKoto, AniWaves, ReAnime, and
+AnimeOnsen expose ranges; Senshi exposes episode fields; AniZone can provide
+explicit opening/ending chapter cues. Missing or invalid timings fall back to
+AniSkip using the release's MAL mapping, episode number, and actual duration.
+Crowd-sourced ranges are accepted only when the reported duration is within
+two seconds of the stream. Duration matching does not guarantee identical
+edits. Missing mappings, differing cuts, or unannotated episodes may have no
+skip button.
+
+Optional lookups run after playback starts, with a six-second total budget,
+and never block or fail playback. AniSkip results are cached in memory for
+24 hours (up to 128 entries), with shorter caching for missing data or errors.
+Both modes set to Off disable lookups. Source recovery replaces the ranges;
+late results from an old stream or episode are discarded. Install the updated
+server and player APK together.
+
 ## Provider configuration
 
 The server resolves configured providers concurrently under a 40-second

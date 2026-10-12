@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { OTTS } from "../catalog/types";
 import type { Ott } from "../catalog/types";
+import { useSources } from "../catalog/sources";
 
 /** Platform picker. Brand color appears only on the active pill;
  * everywhere else the app keeps its own orange. layoutGroup keeps two
@@ -14,9 +15,11 @@ export function OttSwitcher({
   onChange: (o: Ott) => void;
   layoutGroup: string;
 }) {
+  const { local } = useSources();
+  const shown = OTTS.filter((o) => o.id !== "local" || local || value === "local");
   return (
     <div role="tablist" className="flex rounded-full bg-white/[0.07] p-1 ring-1 ring-white/10">
-      {OTTS.map((o) => {
+      {shown.map((o) => {
         const active = o.id === value;
         return (
           <button

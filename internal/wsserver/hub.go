@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"projectorremote/internal/deviceio"
+	"projectorremote/internal/history"
 	"projectorremote/internal/playback"
 )
 
@@ -95,6 +96,10 @@ func (h *Hub) sendInitialState(c *wsClient) {
 	statusB, _ := json.Marshal(map[string]any{"type": "status", "connected": h.ctrl.Connected()})
 	npB, _ := json.Marshal(map[string]any{"type": "now_playing", "session": h.pb.Snapshot()})
 	msgs := [][]byte{appsB, statusB, npB}
+	if settings, ok := h.pb.(interface{ SkipSettings() history.SkipSettings }); ok {
+		b, _ := json.Marshal(map[string]any{"type": "anime_skip_settings", "settings": settings.SkipSettings()})
+		msgs = append(msgs, b)
+	}
 	if vol, err := h.ctrl.Volume(); err == nil {
 		volB, _ := json.Marshal(map[string]any{"type": "volume", "value": vol})
 		msgs = append(msgs, volB)
@@ -192,12 +197,22 @@ func (h *Hub) readPump(c *wsClient) {
 			if isProjectorCommand(raw) {
 				h.sendSettingsError(c, err)
 			}
+			if messageType(raw) == "set_anime_skip" {
+				b, _ := json.Marshal(map[string]any{"type": "anime_skip_error", "message": "Couldn't save your skip preference. Try again."})
+				h.sendTo(c, b)
+			}
 			continue
 		}
 		if isProjectorCommand(raw) {
 			log.Printf("wsserver: projector command type=%s applied_in=%s", messageType(raw), time.Since(started).Round(time.Millisecond))
 		}
 		h.maybeBroadcastVolume(raw)
+		if messageType(raw) == "set_anime_skip" {
+			if settings, ok := h.pb.(interface{ SkipSettings() history.SkipSettings }); ok {
+				b, _ := json.Marshal(map[string]any{"type": "anime_skip_settings", "settings": settings.SkipSettings()})
+				h.broadcast(b)
+			}
+		}
 		h.maybeBroadcastSettings(raw)
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"projectorremote/internal/catalogapi"
 	"projectorremote/internal/deviceio"
 	"projectorremote/internal/history"
+	"projectorremote/internal/localmedia"
 	"projectorremote/internal/netmirror"
 	"projectorremote/internal/playback"
 	"projectorremote/internal/wsserver"
@@ -79,6 +80,10 @@ func main() {
 	animeNoSub := flag.String("anime-animenosub", "https://animenosub.to", "AnimeNoSub site URL")
 	animeOnsen := flag.String("anime-animeonsen", "https://www.animeonsen.xyz", "AnimeOnsen site URL")
 	animeWaves := flag.String("anime-aniwaves", "https://aniwaves.ru", "AniWaves site URL")
+	mediaServer := flag.String("media-server", "", "laptop media server URL (e.g. http://100.x.y.z:8770); empty finds it over Tailscale")
+	mediaPort := flag.Int("media-port", 8770, "port the laptop media server listens on, for discovery")
+	tailscaleCLI := flag.String("tailscale", "/data/local/tmp/tailscale/tailscale", "tailscale CLI, for finding the media server")
+	tailscaleSock := flag.String("tailscale-socket", "/data/local/tmp/tailscale/tailscaled.sock", "tailscaled socket")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -115,7 +120,13 @@ func main() {
 		AnimeOnsenURL: *animeOnsen,
 		AniWavesURL:   *animeWaves,
 	})
-	cat := &catalog.Router{Default: nm, Anime: animeService}
+	// The laptop library: found over Tailscale, shown while it's up.
+	caps := localmedia.DetectCaps()
+	log.Printf("main: decoders for the media library: %+v", caps)
+	local := localmedia.New(localmedia.Config{Server: *mediaServer, Port: *mediaPort,
+		Tailscale: *tailscaleCLI, Socket: *tailscaleSock, Caps: caps})
+	go local.Run(ctx)
+	cat := &catalog.Router{Default: nm, Anime: animeService, Local: local}
 
 	var hub *wsserver.Hub
 	pb := playback.New(playback.Deps{
@@ -128,6 +139,7 @@ func main() {
 	})
 	hub = wsserver.NewHub(ctrl, pb)
 	mux := newMux(distFS, hub, catalogapi.New(cat, hist, tokens), http.HandlerFunc(pb.ServePlayer))
+	mux.Handle(localmedia.ArtPrefix, local.ArtHandler())
 	compat := anime.CompatHandler(animeService)
 	mux.Handle("/map/", compat)
 	mux.Handle("/episodes/", compat)

@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { CaretLeft, CaretRight, Info, Play } from "@phosphor-icons/react";
 import { useRef, type ReactNode } from "react";
-import { posterAspect } from "../catalog/types";
+import { posterAspect, tallPosters } from "../catalog/types";
 import type { ContinueItem, Ott, Poster, Row } from "../catalog/types";
 import { Img } from "../components/Img";
 import { progressRatio, timeLeft } from "../format";
@@ -57,7 +57,7 @@ function RailFrame({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function widthFor(ott: Ott, layout: "h" | "v") {
-  return (ott === "hs" || ott === "anime") || layout === "v" ? "w-[31vw] max-w-[150px]" : "w-[44vw] max-w-[220px]";
+  return tallPosters(ott) || layout === "v" ? "w-[31vw] max-w-[150px]" : "w-[44vw] max-w-[220px]";
 }
 
 export function Rail({ ott, row, onOpen }: { ott: Ott; row: Row; onOpen: (id: string) => void }) {
@@ -96,7 +96,7 @@ export function ContinueRow({
       {items.map((c) => (
         <div
           key={`${c.ott}:${c.titleId}`}
-          className={`shrink-0 snap-start ${(c.ott === "hs" || c.ott === "anime") ? "w-[36vw] max-w-[170px]" : "w-[62vw] max-w-[280px]"}`}
+          className={`shrink-0 snap-start ${tallPosters(c.ott) ? "w-[36vw] max-w-[170px]" : "w-[62vw] max-w-[280px]"}`}
         >
           <div className="relative">
             <motion.button

@@ -90,7 +90,8 @@ func (m *Manager) handlePlayer(conn playerConn, raw []byte) {
 	// Messages about something other than the current stream (a state
 	// report racing a new load) are stale.
 	current := s != nil && s.delivered && s.np.Status != "error" &&
-		(msg.ContentID == "" || msg.ContentID == s.np.ContentID)
+		(msg.ContentID == "" || msg.ContentID == s.np.ContentID) &&
+		(msg.LoadID == "" || msg.LoadID == s.np.LoadID)
 
 	switch msg.Type {
 	case "hello":
@@ -99,12 +100,13 @@ func (m *Manager) handlePlayer(conn playerConn, raw []byte) {
 			m.sendLocked(map[string]any{"type": "stop"})
 		case s.stream == nil:
 			// Still resolving: Play sends the load when it's ready.
-		case msg.ContentID == s.np.ContentID:
+		case msg.ContentID == s.np.ContentID && (msg.LoadID == "" || msg.LoadID == s.np.LoadID):
 			// Reconnected mid-play; it already has the stream.
 			s.delivered = true
 			if s.connectTimer != nil {
 				s.connectTimer.Stop()
 			}
+			m.sendSkipLocked()
 		default:
 			m.sendLoadLocked()
 		}
@@ -145,6 +147,10 @@ func (m *Manager) handlePlayer(conn playerConn, raw []byte) {
 		s.retries++
 		s.np.Status = "loading"
 		s.delivered = false
+		if s.skipCancel != nil {
+			s.skipCancel()
+			s.skipCancel = nil
+		}
 		m.publishLocked()
 		gen, ott, id := s.gen, s.np.OTT, s.np.ContentID
 		m.mu.Unlock()
@@ -169,6 +175,8 @@ func (m *Manager) applyStateLocked(s *session, msg playerMsg) {
 		s.np.Status = msg.Status
 	}
 	s.np.Pos, s.np.Dur, s.np.Selected = msg.Pos, msg.Dur, msg.Selected
+	s.np.SkipRanges = s.np.SkipRanges.ForDuration(msg.Dur)
+	m.fetchSkipLocked(s)
 	if msg.Tracks != nil {
 		t := *msg.Tracks
 		if t.Audio == nil {

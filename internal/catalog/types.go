@@ -6,6 +6,9 @@ import "errors"
 var (
 	ErrNotFound        = errors.New("catalog: not found")
 	ErrInvalidArgument = errors.New("catalog: invalid argument")
+	// ErrOffline means the catalogue's server can't be reached (the
+	// laptop media library when the laptop is asleep or away).
+	ErrOffline = errors.New("catalog: source offline")
 )
 
 type Home struct {
@@ -102,11 +105,13 @@ type EpisodePage struct {
 // Stream describes playable media and its transport requirements. Only the
 // server knows which provider resolved it; clients receive media fields.
 type Stream struct {
-	URL       string
-	Referer   string
-	Headers   map[string]string
-	MimeType  string
-	Subtitles []Subtitle
+	URL        string
+	Referer    string
+	Headers    map[string]string
+	MimeType   string
+	Subtitles  []Subtitle
+	SkipRanges SkipRanges
+	ChapterURL string
 	// Provider is server-side routing metadata; clients never select providers.
 	Provider        string
 	FailedProviders []string
@@ -121,5 +126,5 @@ type Subtitle struct {
 }
 
 func ValidOTT(ott string) bool {
-	return ott == "nf" || ott == "pv" || ott == "hs" || ott == "anime"
+	return ott == "nf" || ott == "pv" || ott == "hs" || ott == "anime" || ott == "local"
 }

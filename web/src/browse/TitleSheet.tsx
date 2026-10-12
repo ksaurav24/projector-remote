@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { CaretDown, Play, SpeakerHigh } from "@phosphor-icons/react";
 import { catalogUrl, getJSON, useApi } from "../catalog/api";
 import type { EpisodePage, Ott, Position, Title } from "../catalog/types";
+import { tallPosters } from "../catalog/types";
 import { Img } from "../components/Img";
 import { clock, progressRatio, timeLeft } from "../format";
 import { AmbientLight } from "./AmbientLight";
@@ -142,7 +143,7 @@ function TitleBody({
         {t.suggest.length > 0 && (
           <section className="mt-10">
             <h2 className="mb-3 text-[17px] font-semibold tracking-[-0.01em]">More like this</h2>
-            <div className={`grid gap-2.5 ${(ott === "hs" || ott === "anime") ? "grid-cols-3" : "grid-cols-2"}`}>
+            <div className={`grid gap-2.5 ${tallPosters(ott) ? "grid-cols-3" : "grid-cols-2"}`}>
               {t.suggest.map((p) => (
                 <PosterCard key={p.id} ott={ott} item={p} layout="h" onOpen={(sid) => onOpenTitle(ott, sid)} />
               ))}

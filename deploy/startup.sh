@@ -19,3 +19,9 @@
 [ -x /data/local/tmp/tailscale/tailscale-up.sh ] && \
   nohup /data/local/tmp/tailscale/tailscale-up.sh \
   > /data/local/tmp/tailscale/boot.log 2>&1 &
+
+# This firmware's OEM launcher reclaims Home on every resume. The guard keeps
+# our chosen Home target without covering the OEM UI after opening it.
+[ -x /data/local/tmp/projector-home-up.sh ] && \
+  nohup /data/local/tmp/projector-home-up.sh --show-home \
+  > /data/local/tmp/projector-home.log 2>&1 &

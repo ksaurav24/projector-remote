@@ -1,4 +1,4 @@
-import type { NowPlaying } from "../playback/types";
+import type { NowPlaying, AnimeSkipSettings, SkipMode } from "../playback/types";
 
 export interface ProjectorSettings {
   zoom: number;
@@ -25,6 +25,8 @@ export type ProjectorSettingsPatch = Partial<Omit<ProjectorSettings, "features" 
 };
 
 export type ServerMessage =
+  | { type: "anime_skip_settings"; settings: AnimeSkipSettings }
+  | { type: "anime_skip_error"; message: string }
   | { type: "status"; connected: boolean }
   | { type: "apps"; items: string[] }
   | { type: "volume"; value: number }
@@ -34,6 +36,8 @@ export type ServerMessage =
   | { type: "now_playing"; session: NowPlaying | null };
 
 export type ClientMessage =
+  | { type: "set_anime_skip"; kind: "intro" | "outro"; mode: SkipMode }
+  | { type: "skip_segment"; contentId: string; loadId: string; kind: "intro" | "outro" }
   | { type: "move"; dx: number; dy: number }
   | { type: "pointerdown" }
   | { type: "pointerup" }

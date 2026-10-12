@@ -1,16 +1,23 @@
 package playback
 
-import "time"
+import (
+	"projectorremote/internal/catalog"
+	"projectorremote/internal/history"
+	"time"
+)
 
 // NowPlaying is the whole playback session as the phones see it. It is
 // always sent as a full snapshot (never a diff), so a phone that
 // connects late or reconnects is immediately in sync.
 type NowPlaying struct {
-	OTT       string `json:"ott"`
-	TitleID   string `json:"titleId"`
-	ContentID string `json:"contentId"`
-	SeasonID  string `json:"seasonId"`
-	Title     string `json:"title"`
+	LoadID       string               `json:"loadId"`
+	SkipRanges   catalog.SkipRanges   `json:"skipRanges"`
+	SkipSettings history.SkipSettings `json:"skipSettings"`
+	OTT          string               `json:"ott"`
+	TitleID      string               `json:"titleId"`
+	ContentID    string               `json:"contentId"`
+	SeasonID     string               `json:"seasonId"`
+	Title        string               `json:"title"`
 	// EpLabel ("S1 E3") and EpTitle are empty for movies.
 	EpLabel string `json:"epLabel"`
 	EpTitle string `json:"epTitle"`
@@ -71,6 +78,7 @@ func emptyTracks() Tracks {
 
 // playerMsg is anything the player app sends.
 type playerMsg struct {
+	LoadID    string   `json:"loadId"`
 	Type      string   `json:"type"`
 	ContentID string   `json:"contentId"`
 	Status    string   `json:"status"`

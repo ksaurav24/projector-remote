@@ -1,11 +1,18 @@
-export type Ott = "nf" | "pv" | "hs" | "anime";
+export type Ott = "nf" | "pv" | "hs" | "anime" | "local";
 
 export const OTTS: { id: Ott; label: string; tint: string }[] = [
   { id: "nf", label: "Netflix", tint: "#E50914" },
   { id: "pv", label: "Prime", tint: "#1A98FF" },
   { id: "hs", label: "Hotstar", tint: "#1F80E0" },
   { id: "anime", label: "Anime", tint: "#7856C8" },
+  // The laptop media library, listed only while its server is reachable.
+  { id: "local", label: "Library", tint: "#2E9E6B" },
 ];
+
+/** Platforms whose cards are tall posters everywhere. */
+export function tallPosters(ott: Ott): boolean {
+  return ott === "hs" || ott === "anime" || ott === "local";
+}
 
 export function ottLabel(ott: Ott): string {
   return OTTS.find((o) => o.id === ott)!.label;
@@ -113,6 +120,7 @@ export interface ContinueItem {
  * Hotstar serves tall art everywhere, even for search and "more like
  * this". */
 export function posterAspect(ott: Ott, layout: "h" | "v"): string {
+  if (ott === "local") return "2 / 3";
   if (ott === "hs" || ott === "anime") return "3 / 4";
   return layout === "v" ? "5 / 7" : "16 / 9";
 }

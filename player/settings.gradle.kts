@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "projector-player"
 include(":app")
+include(":home")

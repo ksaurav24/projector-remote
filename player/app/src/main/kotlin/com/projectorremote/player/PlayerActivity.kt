@@ -11,6 +11,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowInsets
 import android.widget.TextView
+import android.widget.Button
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -44,6 +45,11 @@ class PlayerActivity : Activity() {
     private lateinit var countdownCard: View
     private lateinit var countdownRing: CountdownRing
     private lateinit var errorCard: View
+    private lateinit var skipButton: Button
+    private val segmentSkipper = SegmentSkipper()
+    private var activeSegment: String? = null
+    private var loadId = ""
+    private var replacingStream = false
 
     private val main = Handler(Looper.getMainLooper())
     private val http = DefaultHttpDataSource.Factory()
@@ -72,6 +78,8 @@ class PlayerActivity : Activity() {
         countdownCard = findViewById(R.id.countdown_card)
         countdownRing = findViewById(R.id.countdown_ring)
         errorCard = findViewById(R.id.error_card)
+        skipButton = findViewById(R.id.skip_segment)
+        skipButton.setOnClickListener { activeSegment?.let { skipSegment(it) } }
 
         player = ExoPlayer.Builder(this).build()
         player.addListener(listener)
@@ -130,7 +138,7 @@ class PlayerActivity : Activity() {
     // --- Reporting to the server ---
 
     private fun sayHello() {
-        socket.send(JSONObject().put("type", "hello").put("version", 1).put("contentId", contentId))
+        socket.send(JSONObject().put("type", "hello").put("version", 2).put("contentId", contentId).put("loadId", loadId))
         sendState()
     }
 
@@ -153,9 +161,9 @@ class PlayerActivity : Activity() {
     }
 
     private fun reportEnded() {
-        if (ended) return
+        if (ended || replacingStream) return
         ended = true
-        socket.send(JSONObject().put("type", "ended").put("contentId", contentId))
+        socket.send(JSONObject().put("type", "ended").put("contentId", contentId).put("loadId", loadId))
     }
 
     private val listener = object : Player.Listener {
@@ -167,11 +175,15 @@ class PlayerActivity : Activity() {
             if (events.containsAny(
                     Player.EVENT_PLAYBACK_STATE_CHANGED,
                     Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                    Player.EVENT_IS_PLAYING_CHANGED,
                     Player.EVENT_TRACKS_CHANGED,
                     Player.EVENT_TRACK_SELECTION_PARAMETERS_CHANGED,
                     Player.EVENT_POSITION_DISCONTINUITY,
                 )
-            ) sendState()
+            ) {
+                refreshSkipChecks()
+                sendState()
+            }
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -186,6 +198,7 @@ class PlayerActivity : Activity() {
             }
             socket.send(
                 JSONObject().put("type", "error").put("contentId", contentId)
+                    .put("loadId", loadId)
                     .put("http", http).put("message", "${error.errorCodeName}: ${error.message}")
                     .put("pos", player.currentPosition),
             )
@@ -200,8 +213,9 @@ class PlayerActivity : Activity() {
     }
 
     private fun sendState() {
-        if (contentId.isEmpty() || failed || player.playbackState == Player.STATE_IDLE) return
+        if (contentId.isEmpty() || failed || replacingStream || player.playbackState == Player.STATE_IDLE) return
         val msg = JSONObject().put("type", "state").put("contentId", contentId)
+            .put("loadId", loadId)
             .put("status", status())
             .put("pos", player.currentPosition)
             .put("dur", player.duration.takeIf { it != C.TIME_UNSET } ?: 0)
@@ -258,8 +272,15 @@ class PlayerActivity : Activity() {
                 playerView.showController()
             }
             "seek" -> {
-                player.seekTo(msg.optLong("to"))
+                seekManually(msg.optLong("to"))
                 playerView.showController()
+            }
+            "skip_ranges" -> if (msg.optString("loadId") == loadId && msg.optString("contentId") == contentId) {
+                segmentSkipper.update(msg.optJSONObject("skipRanges"), msg.optJSONObject("skipSettings"))
+                refreshSkipChecks()
+            }
+            "skip_segment" -> if (msg.optString("loadId") == loadId && msg.optString("contentId") == contentId) {
+                skipSegment(msg.optString("kind"))
             }
             "skip" -> skip(msg.optLong("by"))
             "select_track" -> selectTrack(msg.optString("kind"), msg.optString("id"))
@@ -274,11 +295,16 @@ class PlayerActivity : Activity() {
     }
 
     private fun load(msg: JSONObject) {
+        replacingStream = true
         failed = false
         ended = false
         errorCard.visibility = View.GONE
         hideCountdown()
         contentId = msg.optString("contentId")
+        loadId = msg.optString("loadId")
+        segmentSkipper.load("$contentId:${loadId.substringBeforeLast(':')}", msg.optJSONObject("skipRanges"), msg.optJSONObject("skipSettings"))
+        activeSegment = null
+        skipButton.visibility = View.GONE
 
         val p = msg.optJSONObject("prefs")
         applyPrefs(Prefs(p?.optString("audio") ?: "", p?.optString("text") ?: "", p?.optString("quality") ?: ""))
@@ -310,6 +336,8 @@ class PlayerActivity : Activity() {
         player.setMediaSource(source, msg.optLong("startPos"))
         player.prepare()
         player.playWhenReady = true
+        replacingStream = false
+        sendState()
         showTitle(msg.optString("title"), msg.optString("subtitle"))
     }
 
@@ -350,8 +378,55 @@ class PlayerActivity : Activity() {
 
     private fun skip(byMs: Long) {
         val dur = player.duration.takeIf { it != C.TIME_UNSET } ?: Long.MAX_VALUE
-        player.seekTo((player.currentPosition + byMs).coerceIn(0, dur))
+        seekManually((player.currentPosition + byMs).coerceIn(0, dur))
         playerView.showController()
+    }
+
+    private fun seekManually(position: Long) {
+        val duration = player.duration
+        val target = position.coerceIn(0, if (duration > 0) duration else Long.MAX_VALUE)
+        segmentSkipper.manualSeek(target, duration)
+        player.seekTo(target)
+        updateSkipButton()
+    }
+
+    private fun skipSegment(kind: String) {
+        if (failed || ended || player.playbackState != Player.STATE_READY) return
+        val target = segmentSkipper.skip(kind, player.currentPosition, player.duration) ?: return
+        player.seekTo(target)
+        updateSkipButton()
+        sendState()
+    }
+
+    private fun updateSkipButton() {
+        val kind = if (!failed && !ended && player.playbackState == Player.STATE_READY)
+            segmentSkipper.active(player.currentPosition, player.duration) else null
+        if (kind == activeSegment) return
+        activeSegment = kind
+        if (kind == null) {
+            if (skipButton.hasFocus()) playerView.requestFocus()
+            skipButton.visibility = View.GONE
+        } else {
+            skipButton.setText(if (kind == "intro") R.string.skip_intro else R.string.skip_outro)
+            skipButton.visibility = View.VISIBLE
+        }
+    }
+
+    private val skipTicker = object : Runnable {
+        override fun run() {
+            updateSkipButton()
+            val kind = activeSegment
+            if (player.isPlaying && kind != null && segmentSkipper.automatic(kind)) skipSegment(kind)
+            main.removeCallbacks(this)
+            if (player.isPlaying && segmentSkipper.hasRanges()) main.postDelayed(this, 250)
+        }
+    }
+
+    private fun refreshSkipChecks() {
+        main.removeCallbacks(skipTicker)
+        updateSkipButton()
+        // Other sources, paused video and missing timings need no extra timer.
+        if (player.isPlaying && segmentSkipper.hasRanges()) main.post(skipTicker)
     }
 
     private fun fail(message: String) {
@@ -407,14 +482,19 @@ class PlayerActivity : Activity() {
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_SPACE -> {
-                player.playWhenReady = !player.playWhenReady
-                playerView.showController()
+                if ((event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || event.keyCode == KeyEvent.KEYCODE_ENTER) && skipButton.hasFocus()) {
+                    skipButton.performClick()
+                } else {
+                    player.playWhenReady = !player.playWhenReady
+                    playerView.showController()
+                }
             }
             KeyEvent.KEYCODE_MEDIA_PLAY -> player.playWhenReady = true
             KeyEvent.KEYCODE_MEDIA_PAUSE -> player.playWhenReady = false
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> skip(-SKIP_MS)
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> skip(SKIP_MS)
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> playerView.showController()
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (skipButton.visibility == View.VISIBLE) skipButton.requestFocus() else playerView.showController()
+            KeyEvent.KEYCODE_DPAD_UP -> { playerView.requestFocus(); playerView.showController() }
             else -> return super.dispatchKeyEvent(event)
         }
         return true

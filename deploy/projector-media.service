@@ -1,0 +1,22 @@
+# Laptop media library server, as a systemd user service:
+#
+#   go build -o ~/.local/bin/projector-media ./cmd/mediaserver
+#   cp deploy/projector-media.service ~/.config/systemd/user/
+#   systemctl --user enable --now projector-media
+#
+# Put TMDB_API_KEY=... in ~/.config/projector-media.env for posters and
+# descriptions, and change -media below if the library isn't ~/Media.
+
+[Unit]
+Description=Projector media library server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=-%h/.config/projector-media.env
+ExecStart=%h/.local/bin/projector-media -media %h/Media
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

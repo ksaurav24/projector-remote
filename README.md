@@ -14,6 +14,14 @@ with sub/dub editions and automatic source fallback. See
 [`docs/anime-module.md`](docs/anime-module.md) for provider configuration,
 API details, and the required player update.
 
+**Browse → Library** plays video files from a laptop. A media server
+there (`cmd/mediaserver`) indexes a folder of movies and shows, follows
+changes to it, and streams HLS to the projector over Tailscale. Files the
+projector can decode are copied; everything else is transcoded on the
+laptop's GPU. Audio tracks and subtitles are switchable. The tab appears
+only while the laptop is reachable. See
+[`docs/media-library.md`](docs/media-library.md).
+
 Bookmark any title from its detail page, then open **Browse → Bookmarks**
 to find saved movies, shows, and anime across platforms. Bookmarks are stored
 on the projector with watch history and shared across remotes. Other devices
@@ -31,7 +39,7 @@ Phone/laptop browser (PWA)
 Go server — runs ON the projector (cmd/server)
  ├─ HTTP: serves the embedded React build (go:embed web/dist)
  ├─ WS "/ws": JSON message protocol (internal/wsserver)
- ├─ HTTP "/api/catalog/*": normalized NetMirror + anime catalog (internal/catalogapi)
+ ├─ HTTP "/api/catalog/*": normalized NetMirror, anime + laptop library catalog (internal/catalogapi)
  ├─ internal/deviceio: local command execution
  └─ internal/playback: playback session, next episode, resume
         │                        │  WS "/player" (localhost only)
@@ -70,10 +78,19 @@ go generate ./...          # builds the React frontend into web/dist
 GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -o projector-remote ./cmd/server
 ```
 
-The player app (JDK 21; `mise install` inside `player/` sets it up):
+The player app (JDK 21; `mise install` inside `player/` sets it up). It
+needs the Android SDK (platform 36): point `player/local.properties` at
+it with `sdk.dir=/path/to/android-sdk`, or set `ANDROID_HOME`.
 
 ```bash
 cd player && ./gradlew assembleDebug
+```
+
+The laptop media server (runs where the files are; see
+[`docs/media-library.md`](docs/media-library.md)):
+
+```bash
+go build -o ~/.local/bin/projector-media ./cmd/mediaserver
 ```
 
 ## Deploy and run (on the projector)
@@ -102,6 +119,11 @@ Install the player app, which the server launches when you press Play:
 ```bash
 adb install -r player/app/build/outputs/apk/debug/app-debug.apk
 ```
+
+The optional **Vandana Cinema** home app (`player/home/`) provides a personal
+welcome screen, a QR code for the remote, and access to the original launcher.
+It builds as a separate APK. See [`docs/projector-home.md`](docs/projector-home.md)
+for build instructions, deployment checks, and rollback.
 
 The server makes HTTPS calls to NetMirror, so it needs `dnsrelay`
 running for DNS (`docs/device-guide.md` §7). To start everything

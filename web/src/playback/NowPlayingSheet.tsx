@@ -15,7 +15,7 @@ import {
   Stop,
   Subtitles,
 } from "@phosphor-icons/react";
-import { posterAspect } from "../catalog/types";
+import { posterAspect, tallPosters } from "../catalog/types";
 import { Img } from "../components/Img";
 import { tick } from "../format";
 import { AmbientLight } from "../browse/AmbientLight";
@@ -79,12 +79,16 @@ export function NowPlayingSheet({ onClose }: { onClose: () => void }) {
 }
 
 function SheetBody({ np, onClose }: { np: NowPlaying; onClose: () => void }) {
-  const { send } = useWs();
+  const { send, connected } = useWs();
   const play = usePlay();
   const pos = useLivePos(np);
   const [picker, setPicker] = useState<Kind | null>(null);
-  const tall = np.ott === "hs" || np.ott === "anime";
+  const tall = tallPosters(np.ott);
   const busy = np.status === "loading" || np.status === "buffering";
+  const skipKind = (["intro", "outro"] as const).find((kind) => {
+    const range = np.skipRanges?.[kind];
+    return np.ott === "anime" && !busy && (np.status === "playing" || np.status === "paused") && np.skipSettings?.[kind] !== "off" && range && range.end <= np.dur && pos >= range.start && pos < range.end;
+  });
 
   const cmd = (m: Parameters<typeof send>[0]) => {
     tick();
@@ -174,6 +178,21 @@ function SheetBody({ np, onClose }: { np: NowPlaying; onClose: () => void }) {
                     <span className="absolute text-[9px] font-bold">10</span>
                   </TransportButton>
                 </div>
+
+                {np.ott === "anime" && (
+                  <div className="mt-3 flex min-h-12 justify-center">
+                    {skipKind && (
+                      <button
+                        disabled={!connected}
+                        onClick={() => cmd({ type: "skip_segment", contentId: np.contentId, loadId: np.loadId, kind: skipKind })}
+                        className="flex min-h-12 items-center gap-2 rounded-xl bg-spot px-5 text-sm font-bold text-spot-ink transition-colors active:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spot disabled:opacity-50"
+                      >
+                        <SkipForward weight="fill" aria-hidden="true" className="size-5" />
+                        {skipKind === "intro" ? "Skip intro" : "Skip outro"}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <AnimatePresence initial={false} mode="popLayout">
                   {np.countdown ? (

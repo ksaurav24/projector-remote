@@ -5,7 +5,7 @@ import { CURATED_APPS, FAVORITE_PKGS } from "../apps/curatedApps";
 import { AppIcon } from "./AppIcon";
 
 export function AppLauncher() {
-  const { apps, send } = useWs();
+  const { apps, send, connected } = useWs();
 
   const installedSet = useMemo(() => new Set(apps), [apps]);
   const favoriteSet = useMemo(() => new Set(FAVORITE_PKGS), []);
@@ -25,6 +25,17 @@ export function AppLauncher() {
       <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2">
         Apps
       </h2>
+      <button
+        type="button"
+        disabled={!connected}
+        onClick={() => launch("com.jixin.launcher5")}
+        className="mb-4 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm font-medium text-neutral-700 transition-colors active:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:active:bg-neutral-800"
+      >
+        Open original home
+        <span className="mt-1 block text-xs font-normal text-neutral-500">
+          Access the projector’s apps and system settings.
+        </span>
+      </button>
       <div className="grid grid-cols-4 gap-3">
         {curatedInstalled.map((a) => (
           <motion.button

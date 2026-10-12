@@ -482,6 +482,26 @@ It has no launcher icon; the server starts it
 it over `ws://127.0.0.1:8080/player`, which accepts local connections
 only.
 
+More about this device that playback depends on:
+
+- **Cleartext is allowed in the player.** The laptop media library
+  (`docs/media-library.md`) serves plain HTTP inside the tailnet, at an
+  address only known at run time, so `network_security_config.xml`
+  permits cleartext generally; Android 14+ blocks it otherwise
+  (`ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED`).
+- **Only some of the shipped decoders are active.** `/vendor/etc` holds
+  `media_codecs_amlogic_audio_ddp.xml` (AC-3/E-AC-3) and
+  `..._audio_dtshd.xml`, but `media_codecs.xml` doesn't `<Include>` them,
+  so ExoPlayer has no Dolby or DTS decoder: those tracks are listed as
+  unsupported and play silent. The server follows the includes when it
+  reports decoders to the media library, which then converts such audio
+  to AAC. Active video decoders: `c2.amlogic.avc` (to 1920),
+  `c2.amlogic.hevc` (to 4096, 10-bit), VP9 (to 2048), MPEG-2/4.
+- **No HDR.** The display reports no HDR types (`dumpsys display`), so
+  HDR sources are tone-mapped before they get here.
+- **ADB over Tailscale** (`adb connect <projector tailnet IP>:5555`)
+  keeps working when DHCP moves the LAN address.
+
 ## 9. Picture settings and real-time geometry
 
 The remote can control the projector's OEM zoom, focus, manual

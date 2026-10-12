@@ -5,6 +5,7 @@ import { BookmarkSimple, MagnifyingGlass } from "@phosphor-icons/react";
 import { catalogUrl, useApi } from "../catalog/api";
 import type { ContinueItem, Home, Ott } from "../catalog/types";
 import { useOverlays } from "../nav/Overlays";
+import { useSources } from "../catalog/sources";
 import { useWs } from "../ws/WsContext";
 import { AmbientLight } from "./AmbientLight";
 import { Hero } from "./Hero";
@@ -17,7 +18,7 @@ const OTT_KEY = "browse.ott";
 function storedOtt(): Ott {
   try {
     const v = localStorage.getItem(OTT_KEY);
-    if (v === "nf" || v === "pv" || v === "hs" || v === "anime") return v;
+    if (v === "nf" || v === "pv" || v === "hs" || v === "anime" || v === "local") return v;
   } catch {
     // Private mode or storage disabled: fall through to the default.
   }
@@ -27,7 +28,11 @@ function storedOtt(): Ott {
 export function BrowsePage() {
   const { open } = useOverlays();
   const [saved, setSaved] = useState(false);
-  const [ott, setOttState] = useState<Ott>(storedOtt);
+  const [chosenOtt, setOttState] = useState<Ott>(storedOtt);
+  // The library disappears when the laptop's server goes away; show the
+  // default catalogue then rather than an error page.
+  const sources = useSources();
+  const ott: Ott = chosenOtt === "local" && sources.known && !sources.local ? "nf" : chosenOtt;
   const [heroIndex, setHeroIndex] = useState(0);
   const home = useApi<Home>(catalogUrl("home", { ott }));
   const { historyEpoch, connected } = useWs();

@@ -14,9 +14,16 @@ export interface VideoTrack {
 
 export type Status = "loading" | "playing" | "paused" | "buffering" | "ended" | "error";
 
+export type SkipMode = "manual" | "auto" | "off";
+export interface AnimeSkipSettings { intro: SkipMode; outro: SkipMode }
+export interface SkipRange { start: number; end: number; source?: string }
+
 /** The projector's playback session, as the server broadcasts it
  * (internal/playback.NowPlaying). Always a full snapshot. */
 export interface NowPlaying {
+  loadId: string;
+  skipRanges?: { intro?: SkipRange; outro?: SkipRange };
+  skipSettings?: AnimeSkipSettings;
   ott: Ott;
   titleId: string;
   contentId: string;

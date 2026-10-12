@@ -334,6 +334,7 @@ func (s *Scraper) zone(ctx context.Context, slug string, ep int) (*catalog.Strea
 		return nil, e
 	}
 	var player struct {
+		Chapter   string `json:"chapter"`
 		Src       string `json:"src"`
 		Subtitles []struct {
 			File     string `json:"file"`
@@ -350,6 +351,9 @@ func (s *Scraper) zone(ctx context.Context, slug string, ep int) (*catalog.Strea
 		return nil, fmt.Errorf("AniZone: missing HLS")
 	}
 	stream := &catalog.Stream{URL: absolute(s.Base, player.Src), Referer: s.Base + path, MimeType: "application/x-mpegURL"}
+	if chapter := absolute(s.Base, player.Chapter); player.Chapter != "" && validURL(chapter) {
+		stream.ChapterURL = chapter
+	}
 	for _, sub := range player.Subtitles {
 		if sub.File != "" {
 			subURL := absolute(s.Base, sub.File)

@@ -365,6 +365,7 @@ func (p *ReferenceProvider) resolveAnimeOnsen(ctx context.Context, m Media, ep i
 			Subtitles map[string]string `json:"subtitles"`
 		} `json:"uri"`
 		Metadata struct {
+			Episode   json.RawMessage   `json:"episode"`
 			Subtitles map[string]string `json:"subtitles"`
 		} `json:"metadata"`
 	}
@@ -375,6 +376,17 @@ func (p *ReferenceProvider) resolveAnimeOnsen(ctx context.Context, m Media, ep i
 		return nil, fmt.Errorf("AnimeOnsen returned a non-HLS/MP4 stream")
 	}
 	stream := &catalog.Stream{URL: video.URI.Stream, MimeType: streamMime("", video.URI.Stream), Referer: p.Base + "/", Headers: map[string]string{"Authorization": "Bearer " + session.token}}
+	var skipItems []struct {
+		Start json.RawMessage `json:"skipIntro_s"`
+		End   json.RawMessage `json:"skipIntro_e"`
+	}
+	_ = json.Unmarshal(video.Metadata.Episode, &skipItems)
+	for _, item := range skipItems {
+		if r := catalog.SecondsRange(skipNumber(item.Start), skipNumber(item.End), "provider"); r != nil {
+			stream.SkipRanges.Intro = r
+			break
+		}
+	}
 	for code, raw := range video.URI.Subtitles {
 		if !validURL(raw) {
 			continue

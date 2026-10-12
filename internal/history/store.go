@@ -85,6 +85,7 @@ type Bookmark struct {
 }
 
 type fileData struct {
+	AnimeSkip SkipSettings        `json:"animeSkip"`
 	Bookmarks []Bookmark          `json:"bookmarks,omitempty"`
 	Positions map[string]Position `json:"positions"`
 	Recent    []Entry             `json:"recent"`

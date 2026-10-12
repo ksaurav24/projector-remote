@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext only to the control server on this same box; every
-     stream URL is HTTPS. -->
+<!-- Cleartext is allowed: besides the control server on this same box,
+     the laptop media library serves its HLS over plain HTTP inside the
+     tailnet, at an address only known at run time (Android can't scope
+     this to the tailnet's 100.64.0.0/10). The player only opens URLs the
+     projector's own server hands it; NetMirror and anime streams stay
+     HTTPS. -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

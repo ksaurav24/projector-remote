@@ -132,6 +132,7 @@ func (p *ReferenceProvider) resolveAniKoto(ctx context.Context, m Media, ep int,
 	}
 	for _, item := range links {
 		var resolved struct {
+			skipFields
 			URL string `json:"url"`
 		}
 		if validURL(item.id) {
@@ -141,6 +142,7 @@ func (p *ReferenceProvider) resolveAniKoto(ctx context.Context, m Media, ep int,
 		}
 		stream := p.directOrEmbed(ctx, resolved.URL, p.Base+"/")
 		if stream != nil {
+			stream.SkipRanges = resolved.ranges()
 			return stream, nil
 		}
 	}
@@ -212,12 +214,14 @@ func (p *ReferenceProvider) resolveAniWaves(ctx context.Context, m Media, ep int
 		for _, li := range regexp.MustCompile(`(?is)<li\b[^>]*data-link-id=["'][^"']+["'][^>]*>.*?</li>`).FindAllString(groupHTML, -1) {
 			linkID := attr(li, "data-link-id")
 			var source struct {
+				skipFields
 				URL string `json:"url"`
 			}
 			if err := p.ajax(ctx, "/ajax/sources?id="+url.QueryEscape(linkID)+"&asi=0&autoPlay=0", referer, &source); err != nil {
 				continue
 			}
 			if stream := p.directOrEmbed(ctx, source.URL, referer); stream != nil {
+				stream.SkipRanges = source.ranges()
 				return stream, nil
 			}
 		}
